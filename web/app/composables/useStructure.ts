@@ -58,7 +58,16 @@ function templateMol(RDKit: RDKitModule, t: DepictionTemplate): RDKitMol | null 
   return mol;
 }
 
-export async function renderStructure(smiles: string, template?: DepictionTemplate, size = 240): Promise<string> {
+/**
+ * SVG for a SMILES string. By default bonds have a fixed length so structures can be compared by
+ * size; `fit` scales each drawing to fill the box instead (for small tiles).
+ */
+export async function renderStructure(
+  smiles: string,
+  template?: DepictionTemplate,
+  size = 240,
+  fit = false,
+): Promise<string> {
   const RDKit = await loadRDKit();
   const mol = RDKit.get_mol(smiles);
   if (!mol || !mol.is_valid()) throw new Error(`invalid SMILES: ${smiles}`);
@@ -66,9 +75,8 @@ export async function renderStructure(smiles: string, template?: DepictionTempla
     const tmpl = template && templateMol(RDKit, template);
     if (tmpl) mol.generate_aligned_coords(tmpl, JSON.stringify({ acceptFailure: true }));
     // A fixed bond length keeps structures at the same scale, so sizes can be compared.
-    return mol.get_svg_with_highlights(
-      JSON.stringify({ width: size, height: size, fixedBondLength: 26, clearBackground: false }),
-    );
+    const opts = { width: size, height: size, clearBackground: false, ...(fit ? { padding: 0.08 } : { fixedBondLength: 26 }) };
+    return mol.get_svg_with_highlights(JSON.stringify(opts));
   } finally {
     mol.delete();
   }

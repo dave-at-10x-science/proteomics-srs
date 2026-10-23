@@ -41,6 +41,10 @@ Add and edit cards in the app under **Library**: create sets, add notes with a l
 preview as you type SMILES, upload images for things SMILES can't draw, and mark notes as drafts
 to keep them out of review. Uploaded images are stored in `data/media/`.
 
+**Memory game** (Game in the header): match pairs such as structure ↔ name or one-letter code ↔
+name, using only notes you've already studied. Results are kept for personal bests, and the game
+never changes your review schedule.
+
 Seed import runs on every start. Note types and sets are updated from the files, new notes are
 added, and notes you've edited in the app are left alone.
 
@@ -66,6 +70,9 @@ added, and notes you've edited in the app are left alone.
 | POST | `/api/media` | Upload an image (raw body, `Content-Type: image/*`); returns `{url}` |
 | POST | `/api/notes` | Add a note: `{set_id, note_type_id, fields, id?, status?}` |
 | GET/PUT/DELETE | `/api/notes/{id}` | Read, edit, delete a note |
+| GET | `/api/game/options` | Sets you can play (with studied-note counts) and their pairings |
+| GET | `/api/game/board` | `?set=&a=&b=&pairs=` a shuffled board of studied notes |
+| POST | `/api/game/results` | Record a game; returns personal bests |
 | GET/PUT | `/api/settings` | New cards per day, review cap, target retention |
 
 ## Development

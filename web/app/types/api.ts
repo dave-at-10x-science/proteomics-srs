@@ -87,3 +87,35 @@ export type StoredNote = { id: string; note_type_id: string; status: 'draft' | '
   string,
   FieldValue
 >;
+
+export interface Pairing {
+  a: string;
+  b: string;
+  label: string;
+}
+
+export interface GameOption {
+  set_id: string;
+  set_name: string;
+  introduced: number;
+  pairings: Pairing[];
+}
+
+export interface Tile {
+  id: string;
+  note_id: string;
+  field: string;
+}
+
+export interface Board {
+  set_id: string;
+  note_type: NoteType;
+  notes: Record<string, Record<string, FieldValue>>;
+  tiles: Tile[];
+}
+
+export interface GameBest {
+  games: number;
+  best_ms: number | null;
+  fewest_flips: number | null;
+}

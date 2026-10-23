@@ -1,5 +1,8 @@
 import type {
+  Board,
   CheckResponse,
+  GameBest,
+  GameOption,
   FieldValue,
   NextResponse,
   NoteType,
@@ -33,6 +36,18 @@ export function useApi() {
     updateNote: (id: string, body: { fields: Fields; status: Status }) =>
       $fetch<StoredNote>(`/api/notes/${encodeURIComponent(id)}`, { method: 'PUT', body }),
     deleteNote: (id: string) => $fetch(`/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    gameOptions: () => $fetch<GameOption[]>('/api/game/options'),
+    board: (set: string, a: string, b: string, pairs: number) =>
+      $fetch<Board>('/api/game/board', { query: { set, a, b, pairs } }),
+    gameResult: (body: {
+      set_id: string;
+      a: string;
+      b: string;
+      pairs: number;
+      flips: number;
+      duration_ms: number;
+      completed: boolean;
+    }) => $fetch<GameBest>('/api/game/results', { method: 'POST', body }),
     uploadImage: (file: File) =>
       $fetch<{ url: string }>('/api/media', { method: 'POST', body: file, headers: { 'content-type': file.type } }),
   };

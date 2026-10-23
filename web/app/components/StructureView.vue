@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DepictionTemplate } from '~/types/api';
 
-const props = defineProps<{ smiles: string; template?: DepictionTemplate }>();
+const props = defineProps<{ smiles: string; template?: DepictionTemplate; fit?: boolean }>();
 const emit = defineEmits<{ valid: [boolean] }>();
 const svg = ref('');
 const error = ref('');
@@ -9,7 +9,7 @@ const error = ref('');
 watchEffect(async () => {
   error.value = '';
   try {
-    svg.value = await renderStructure(props.smiles, props.template);
+    svg.value = await renderStructure(props.smiles, props.template, 240, props.fit);
     emit('valid', true);
   } catch (e) {
     emit('valid', false);
@@ -21,7 +21,7 @@ watchEffect(async () => {
 
 <template>
   <!-- Structures are drawn on a light "paper" so they read the same in dark mode. -->
-  <div class="structure" role="img" :aria-label="`Chemical structure`">
+  <div class="structure" :class="{ fit }" role="img" :aria-label="`Chemical structure`">
     <div v-if="svg" class="svg" v-html="svg" />
     <p v-else-if="error" class="error">{{ error }}</p>
     <p v-else class="loading">Drawing…</p>
@@ -39,6 +39,14 @@ watchEffect(async () => {
   width: min(100%, 240px);
   margin: 0 auto;
   border: 1px solid var(--border);
+}
+.structure.fit {
+  width: 100%;
+  border: none;
+  border-radius: inherit;
+}
+.svg {
+  width: 100%;
 }
 .svg :deep(svg) {
   width: 100%;

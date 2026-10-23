@@ -366,3 +366,80 @@ async fn vocabulary_set_is_imported_but_not_subscribed() {
     assert_eq!(vocab["note_count"], 24);
     assert_eq!(vocab["card_count"], 48);
 }
+
+#[tokio::test]
+async fn memory_game_uses_only_introduced_notes_and_never_touches_the_schedule() {
+    let t = TestApp::new().await;
+    // Nothing studied yet: no game options, and boards are refused.
+    assert_eq!(t.get("/api/game/options").await, json!([]));
+    let (status, _) = t
+        .call(
+            "GET",
+            "/api/game/board?set=amino-acids-20&a=structure&b=name",
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+
+    // Study today's ten new cards.
+    let mut card = t.get("/api/review/next").await["card"].clone();
+    let mut studied = std::collections::HashSet::new();
+    while !card.is_null() {
+        studied.insert(card["note_id"].as_str().unwrap().to_string());
+        card = t.rate(&card, "good").await["next"]["card"].clone();
+    }
+    let schedule_before: Vec<(String, String)> =
+        sqlx::query_as("SELECT note_id || '/' || template_id, due FROM card_state ORDER BY 1")
+            .fetch_all(&t.pool)
+            .await
+            .unwrap();
+
+    let options = t.get("/api/game/options").await;
+    assert_eq!(options[0]["set_id"], "amino-acids-20");
+    assert_eq!(options[0]["introduced"], 10);
+
+    let board = t
+        .get("/api/game/board?set=amino-acids-20&a=structure&b=name&pairs=12")
+        .await;
+    let tiles = board["tiles"].as_array().unwrap();
+    assert_eq!(tiles.len(), 20, "capped at the 10 introduced notes");
+    for tile in tiles {
+        assert!(studied.contains(tile["note_id"].as_str().unwrap()));
+    }
+    let note = &board["notes"][tiles[0]["note_id"].as_str().unwrap()];
+    assert!(note["smiles"].is_string() && note["name"].is_string());
+    assert!(note.get("pI").is_none(), "only the fields tiles need are sent");
+
+    // Side-chain class repeats across amino acids, and values must be unique per side or matches
+    // would be ambiguous. The first ten amino acids span only two classes, so that board is refused.
+    let (status, err) = t
+        .call(
+            "GET",
+            "/api/game/board?set=amino-acids-20&a=structure&b=side_chain_class",
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(err["error"].as_str().unwrap().contains("found 2"), "{err}");
+
+    let (status, best) = t
+        .post(
+            "/api/game/results",
+            json!({ "set_id": "amino-acids-20", "a": "structure", "b": "name", "pairs": 8, "flips": 22, "duration_ms": 61000, "completed": true }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(best, json!({ "games": 1, "best_ms": 61000, "fewest_flips": 22 }));
+
+    let schedule_after: Vec<(String, String)> =
+        sqlx::query_as("SELECT note_id || '/' || template_id, due FROM card_state ORDER BY 1")
+            .fetch_all(&t.pool)
+            .await
+            .unwrap();
+    assert_eq!(schedule_before, schedule_after);
+    let reviews: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM review_log")
+        .fetch_one(&t.pool)
+        .await
+        .unwrap();
+    assert_eq!(reviews, 10);
+}

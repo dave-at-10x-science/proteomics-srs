@@ -1,6 +1,7 @@
 //! JSON API. Every handler acts as [`crate::LOCAL_USER`] until accounts exist.
 
 mod content;
+mod game;
 mod media;
 mod review;
 
@@ -34,6 +35,9 @@ pub fn router() -> Router<AppState> {
             "/media",
             post(media::upload).layer(DefaultBodyLimit::max(media::MAX_BYTES)),
         )
+        .route("/game/options", get(game::options))
+        .route("/game/board", get(game::board))
+        .route("/game/results", post(game::record))
         .route("/review/next", get(review::next))
         .route("/review/check", post(review::check))
         .route("/review/answer", post(review::answer))
