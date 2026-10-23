@@ -27,6 +27,7 @@ const html = computed(() => (props.def.type === 'markdown' ? (marked.parse(Strin
   <div class="field" :class="{ large }">
     <div v-if="label" class="label">{{ fieldLabel(def) }}</div>
     <StructureView v-if="structureSmiles" :smiles="structureSmiles" :template="template" />
+    <img v-else-if="def.type === 'image' && value" :src="String(value)" :alt="fieldLabel(def)" class="image" />
     <div v-else-if="def.type === 'markdown'" class="markdown" v-html="html" />
     <div v-else class="value">
       {{ value }}<span v-if="def.unit" class="unit">{{ def.unit }}</span>
@@ -52,6 +53,13 @@ const html = computed(() => (props.def.type === 'markdown' ? (marked.parse(Strin
   margin-left: 0.25em;
   color: var(--muted);
   font-size: 0.85em;
+}
+.image {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  margin: 0 auto;
+  border-radius: var(--radius);
 }
 .markdown :deep(p) {
   margin: 0;

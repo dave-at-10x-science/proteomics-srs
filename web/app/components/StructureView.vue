@@ -2,6 +2,7 @@
 import type { DepictionTemplate } from '~/types/api';
 
 const props = defineProps<{ smiles: string; template?: DepictionTemplate }>();
+const emit = defineEmits<{ valid: [boolean] }>();
 const svg = ref('');
 const error = ref('');
 
@@ -9,7 +10,9 @@ watchEffect(async () => {
   error.value = '';
   try {
     svg.value = await renderStructure(props.smiles, props.template);
+    emit('valid', true);
   } catch (e) {
+    emit('valid', false);
     svg.value = '';
     error.value = e instanceof Error ? e.message : String(e);
   }

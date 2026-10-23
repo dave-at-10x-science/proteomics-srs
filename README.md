@@ -11,7 +11,7 @@ matching-pairs memory game for practice. Structures are drawn from SMILES. See
 crates/srs-core/   Scheduling (FSRS), daily queue, content model, answer checking. No I/O; builds for WASM.
 crates/srs-server/ Local server: JSON API + serves the web app. SQLite in data/.
 web/               Nuxt SPA, installable as a PWA. Structures drawn from SMILES with RDKit.js.
-seed/              Starter sets as YAML. The 20 amino acids are the default set.
+seed/              Starter sets as YAML: the 20 amino acids (default) and MS/proteomics vocabulary.
 tools/             Content helpers (SMILES validation and structure previews).
 docs/              Design notes.
 ```
@@ -37,6 +37,10 @@ This creates `data/srs.sqlite`, imports everything under `seed/` (the amino acid
 subscribed by default), and listens on `http://0.0.0.0:8080` so a phone on the same Wi-Fi can
 reach it at your machine's LAN address. Back up by copying `data/`.
 
+Add and edit cards in the app under **Library**: create sets, add notes with a live structure
+preview as you type SMILES, upload images for things SMILES can't draw, and mark notes as drafts
+to keep them out of review. Uploaded images are stored in `data/media/`.
+
 Seed import runs on every start. Note types and sets are updated from the files, new notes are
 added, and notes you've edited in the app are left alone.
 
@@ -59,6 +63,7 @@ added, and notes you've edited in the app are left alone.
 | PUT | `/api/sets/{id}/subscription` | `{subscribed: bool}` |
 | GET | `/api/sets/{id}/notes` | Notes in a set |
 | GET | `/api/note-types`, `/api/note-types/{id}` | Field and template definitions |
+| POST | `/api/media` | Upload an image (raw body, `Content-Type: image/*`); returns `{url}` |
 | POST | `/api/notes` | Add a note: `{set_id, note_type_id, fields, id?, status?}` |
 | GET/PUT/DELETE | `/api/notes/{id}` | Read, edit, delete a note |
 | GET/PUT | `/api/settings` | New cards per day, review cap, target retention |

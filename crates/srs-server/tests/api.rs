@@ -21,10 +21,11 @@ impl TestApp {
     async fn new() -> Self {
         let pool = open_db("sqlite::memory:").await.unwrap();
         let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
-        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 1);
+        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 2);
         let now = Arc::new(Mutex::new(Utc.with_ymd_and_hms(2026, 10, 23, 12, 0, 0).unwrap()));
         let clock_now = now.clone();
-        let mut state = AppState::new(pool.clone());
+        let media_dir = std::env::temp_dir().join(format!("srs-media-{}", std::process::id()));
+        let mut state = AppState::new(pool.clone(), media_dir);
         state.clock = Arc::new(move || *clock_now.lock().unwrap());
         Self {
             router: app(state, None),
@@ -109,9 +110,10 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
-    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 20);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 120);
-    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 20);
+    // 20 amino acids x 6 templates, 24 terms x 2 templates.
+    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 44);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 168);
+    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 44);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
 }
@@ -305,4 +307,62 @@ async fn settings_are_validated() {
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(t.get("/api/review/next").await["counts"]["new"], 5);
+}
+
+#[tokio::test]
+async fn images_upload_and_are_served_with_a_strict_csp() {
+    let t = TestApp::new().await;
+    let png = b"\x89PNG\r\n\x1a\nnot really a png but fine for storage";
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/media")
+        .header("content-type", "image/png")
+        .body(Body::from(&png[..]))
+        .unwrap();
+    let res = t.router.clone().oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::CREATED);
+    let body: Value = serde_json::from_slice(&res.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let url = body["url"].as_str().unwrap();
+    assert!(url.starts_with("/media/") && url.ends_with(".png"), "{url}");
+
+    let res = t
+        .router
+        .clone()
+        .oneshot(Request::get(url).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert!(
+        res.headers()["content-security-policy"]
+            .to_str()
+            .unwrap()
+            .contains("default-src 'none'")
+    );
+    assert_eq!(&res.into_body().collect().await.unwrap().to_bytes()[..], &png[..]);
+
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/media")
+        .header("content-type", "application/pdf")
+        .body(Body::from("x"))
+        .unwrap();
+    assert_eq!(
+        t.router.clone().oneshot(req).await.unwrap().status(),
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+}
+
+#[tokio::test]
+async fn vocabulary_set_is_imported_but_not_subscribed() {
+    let t = TestApp::new().await;
+    let sets = t.get("/api/sets").await;
+    let vocab = sets
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["id"] == "ms-vocabulary")
+        .unwrap();
+    assert_eq!(vocab["subscribed"], false);
+    assert_eq!(vocab["note_count"], 24);
+    assert_eq!(vocab["card_count"], 48);
 }

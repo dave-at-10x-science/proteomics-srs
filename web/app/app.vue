@@ -3,7 +3,8 @@
     <header>
       <NuxtLink to="/" class="title">Proteomics SRS</NuxtLink>
       <nav>
-        <NuxtLink to="/settings" aria-label="Settings">Settings</NuxtLink>
+        <NuxtLink to="/library">Library</NuxtLink>
+        <NuxtLink to="/settings">Settings</NuxtLink>
       </nav>
     </header>
     <main>
@@ -31,6 +32,10 @@ header {
   font-weight: 700;
   color: var(--text);
   text-decoration: none;
+}
+nav {
+  display: flex;
+  gap: 1rem;
 }
 nav a {
   color: var(--muted);

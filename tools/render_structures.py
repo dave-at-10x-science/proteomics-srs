@@ -46,6 +46,9 @@ def main():
 
     data = yaml.safe_load(args.set_file.read_text())
     nt = data["note_type"]
+    if not any(f["type"] == "smiles" for f in nt["fields"]):
+        print(f"{args.set_file}: no SMILES fields, nothing to check")
+        return
     structure = next((f for f in nt["fields"] if f.get("from") == "smiles"), None)
     tmpl = None
     if structure and structure.get("depiction_template"):

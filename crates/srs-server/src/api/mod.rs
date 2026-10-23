@@ -1,9 +1,11 @@
 //! JSON API. Every handler acts as [`crate::LOCAL_USER`] until accounts exist.
 
 mod content;
+mod media;
 mod review;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
 use serde_json::{Value, json};
 
@@ -27,6 +29,10 @@ pub fn router() -> Router<AppState> {
             get(content::get_note)
                 .put(content::update_note)
                 .delete(content::delete_note),
+        )
+        .route(
+            "/media",
+            post(media::upload).layer(DefaultBodyLimit::max(media::MAX_BYTES)),
         )
         .route("/review/next", get(review::next))
         .route("/review/check", post(review::check))

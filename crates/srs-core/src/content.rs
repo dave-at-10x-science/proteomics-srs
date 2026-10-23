@@ -160,6 +160,25 @@ mod tests {
     }
 
     #[test]
+    fn every_seed_set_is_valid() {
+        let seed = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
+        let mut checked = 0;
+        for dir in std::fs::read_dir(seed).unwrap() {
+            for f in std::fs::read_dir(dir.unwrap().path()).unwrap() {
+                let path = f.unwrap().path();
+                if path.extension().is_some_and(|e| e == "yaml") {
+                    let src = std::fs::read_to_string(&path).unwrap();
+                    if let Err(e) = SetFile::from_yaml(&src) {
+                        panic!("{}: {e}", path.display());
+                    }
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked >= 2);
+    }
+
+    #[test]
     fn amino_acid_codes_are_unique() {
         let file = SetFile::from_yaml(AMINO_ACIDS).unwrap();
         for field in ["name", "three_letter", "one_letter", "smiles"] {

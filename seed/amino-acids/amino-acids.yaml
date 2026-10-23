@@ -17,7 +17,7 @@ note_type:
     - {name: three_letter, label: Three-letter code, type: text}
     - {name: one_letter, label: One-letter code, type: text}
     - {name: structure, type: image, from: smiles, depiction_template: amino-acid-backbone}
-    - {name: smiles, type: smiles}
+    - {name: smiles, label: SMILES, type: smiles}
     - {name: side_chain_class, label: Side-chain class, type: text}
     - {name: residue_mass_mono, label: Residue mass (monoisotopic), type: number, unit: Da}
     - {name: pI, label: pI, type: number}

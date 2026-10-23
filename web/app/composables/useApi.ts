@@ -1,4 +1,16 @@
-import type { CheckResponse, NextResponse, Rating, SetSummary, Settings } from '~/types/api';
+import type {
+  CheckResponse,
+  FieldValue,
+  NextResponse,
+  NoteType,
+  Rating,
+  SetSummary,
+  Settings,
+  StoredNote,
+} from '~/types/api';
+
+type Fields = Record<string, FieldValue>;
+type Status = 'draft' | 'published';
 
 export function useApi() {
   return {
@@ -12,5 +24,22 @@ export function useApi() {
       $fetch(`/api/sets/${encodeURIComponent(id)}/subscription`, { method: 'PUT', body: { subscribed } }),
     settings: () => $fetch<Settings>('/api/settings'),
     saveSettings: (s: Settings) => $fetch<Settings>('/api/settings', { method: 'PUT', body: s }),
+    createSet: (name: string) => $fetch<SetSummary>('/api/sets', { method: 'POST', body: { name } }),
+    setNotes: (id: string) => $fetch<StoredNote[]>(`/api/sets/${encodeURIComponent(id)}/notes`),
+    noteTypes: () => $fetch<NoteType[]>('/api/note-types'),
+    note: (id: string) => $fetch<StoredNote>(`/api/notes/${encodeURIComponent(id)}`),
+    createNote: (body: { set_id: string; note_type_id: string; fields: Fields; status: Status }) =>
+      $fetch<StoredNote>('/api/notes', { method: 'POST', body }),
+    updateNote: (id: string, body: { fields: Fields; status: Status }) =>
+      $fetch<StoredNote>(`/api/notes/${encodeURIComponent(id)}`, { method: 'PUT', body }),
+    deleteNote: (id: string) => $fetch(`/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    uploadImage: (file: File) =>
+      $fetch<{ url: string }>('/api/media', { method: 'POST', body: file, headers: { 'content-type': file.type } }),
   };
+}
+
+/** The server's validation messages from a failed request, or a generic one. */
+export function apiErrors(e: unknown): string[] {
+  const data = (e as { data?: { error?: string; errors?: string[] } }).data;
+  return data?.errors ?? (data?.error ? [data.error] : ['Something went wrong. Is the server running?']);
 }

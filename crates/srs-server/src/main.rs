@@ -46,7 +46,9 @@ async fn main() -> anyhow::Result<()> {
     let imported = seed::import_dir(&pool, &config.seed_dir).await?;
     tracing::info!(sets = imported, dir = %config.seed_dir.display(), "seed sets imported");
 
-    let mut state = AppState::new(pool);
+    let media_dir = config.data_dir.join("media");
+    std::fs::create_dir_all(&media_dir)?;
+    let mut state = AppState::new(pool, media_dir);
     state.day_rollover_hour = config.day_rollover_hour;
 
     let listener = tokio::net::TcpListener::bind(&config.bind).await?;

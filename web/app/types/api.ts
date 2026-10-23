@@ -82,3 +82,8 @@ export interface Settings {
   reviews_per_day: number | null;
   desired_retention: number;
 }
+
+export type StoredNote = { id: string; note_type_id: string; status: 'draft' | 'published' } & Record<
+  string,
+  FieldValue
+>;
