@@ -149,6 +149,11 @@ impl FsrsScheduler {
         })
     }
 
+    pub fn with_retention(mut self, desired_retention: f32) -> Self {
+        self.desired_retention = desired_retention;
+        self
+    }
+
     fn next_states(&self, state: &CardState, now: DateTime<Utc>) -> Result<NextStates, SchedulerError> {
         let days_elapsed = state
             .last_review

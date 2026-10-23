@@ -22,6 +22,40 @@ pub enum ContentError {
     Invalid(Vec<String>),
 }
 
+/// Problems with one note against its note type: unknown fields, missing required fields, and
+/// values of the wrong kind.
+pub fn validate_note(note_type: &NoteType, note: &Note) -> Vec<String> {
+    let mut errors = Vec::new();
+    if note.id.trim().is_empty() {
+        errors.push("note id must not be empty".to_string());
+    }
+    for key in note.fields.keys() {
+        if note_type.field(key).is_none() {
+            errors.push(format!("note `{}` has unknown field `{key}`", note.id));
+        }
+    }
+    for f in &note_type.fields {
+        // Derived fields are rendered, not stored.
+        if f.from.is_some() {
+            continue;
+        }
+        match note.get(&f.name) {
+            None if !f.optional => errors.push(format!(
+                "note `{}` is missing required field `{}`",
+                note.id, f.name
+            )),
+            Some(v) if f.field_type == FieldType::Number && !v.is_number() => {
+                errors.push(format!("note `{}` field `{}` must be a number", note.id, f.name))
+            }
+            Some(v) if f.field_type != FieldType::Number && !v.is_string() => {
+                errors.push(format!("note `{}` field `{}` must be text", note.id, f.name))
+            }
+            _ => {}
+        }
+    }
+    errors
+}
+
 impl SetFile {
     /// Parse and validate a set file.
     pub fn from_yaml(src: &str) -> Result<Self, ContentError> {
@@ -83,27 +117,7 @@ impl SetFile {
             if !note_ids.insert(note.id.as_str()) {
                 errors.push(format!("note `{}` is declared twice", note.id));
             }
-            for key in note.fields.keys() {
-                if nt.field(key).is_none() {
-                    errors.push(format!("note `{}` has unknown field `{key}`", note.id));
-                }
-            }
-            for f in &nt.fields {
-                // Derived fields are rendered, not stored.
-                if f.from.is_some() {
-                    continue;
-                }
-                match note.get(&f.name) {
-                    None if !f.optional => errors.push(format!(
-                        "note `{}` is missing required field `{}`",
-                        note.id, f.name
-                    )),
-                    Some(v) if f.field_type == FieldType::Number && !v.is_number() => {
-                        errors.push(format!("note `{}` field `{}` must be a number", note.id, f.name))
-                    }
-                    _ => {}
-                }
-            }
+            errors.extend(validate_note(nt, note));
         }
 
         if errors.is_empty() {
