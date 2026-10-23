@@ -1,0 +1,93 @@
+# Default set: the 20 standard amino acids
+# Values: monoisotopic residue mass (Da, as found in a peptide chain, i.e. free amino acid minus H2O);
+# pI from Lehninger, Principles of Biochemistry (approximate, varies by source).
+# SMILES are isomeric (L-form, free acid) and are the source of truth for structures. They are
+# rendered by the app at runtime with the backbone aligned left to right, side chain up.
+
+set:
+  id: amino-acids-20
+  name: The 20 amino acids
+  default: true
+  tags: [amino-acids, fundamentals]
+
+note_type:
+  id: AminoAcid
+  fields:
+    - {name: name, type: text}
+    - {name: three_letter, label: Three-letter code, type: text}
+    - {name: one_letter, label: One-letter code, type: text}
+    - {name: structure, type: image, from: smiles, depiction_template: amino-acid-backbone}
+    - {name: smiles, label: SMILES, type: smiles}
+    - {name: side_chain_class, label: Side-chain class, type: text}
+    - {name: residue_mass_mono, label: Residue mass (monoisotopic), type: number, unit: Da}
+    - {name: pI, label: pI, type: number}
+    - {name: note, label: Note, type: markdown, optional: true}
+  depiction_templates:
+    amino-acid-backbone:
+      # Core aligned in every drawing: H2N-CA-C(=O)OH, backbone left to right, side chain up from CA.
+      smiles: "NCC(=O)O"
+      coords: [[-1.3, -0.75], [0.0, 0.0], [1.3, -0.75], [1.3, -2.25], [2.6, 0.0]]  # N, CA, C, =O, OH
+  templates:
+    - id: structure-to-name
+      prompt: [structure]
+      answer: [name, three_letter, one_letter]
+      mode: typed
+      accept: [name, three_letter, one_letter]
+    - id: one-letter-to-name
+      prompt: [one_letter]
+      answer: [name]
+      mode: multiple_choice
+    - id: name-to-one-letter
+      prompt: [name]
+      answer: [one_letter]
+      mode: typed
+    - id: three-letter-to-name
+      prompt: [three_letter]
+      answer: [name]
+      mode: multiple_choice
+    - id: structure-to-class
+      prompt: [structure]
+      answer: [side_chain_class]
+      mode: multiple_choice
+    - id: name-to-residue-mass
+      prompt: [name]
+      answer: [residue_mass_mono]
+      mode: typed
+      tolerance: 0.01
+      enabled_by_default: false   # advanced; turn on once the basics stick
+
+notes:
+  - {id: aa-gly, name: Glycine,       three_letter: Gly, one_letter: G, side_chain_class: nonpolar aliphatic, residue_mass_mono: 57.02146,  pI: 5.97, smiles: "C(C(=O)O)N",
+     note: "Smallest amino acid; side chain is just H, so it is the only achiral one."}
+  - {id: aa-ala, name: Alanine,       three_letter: Ala, one_letter: A, side_chain_class: nonpolar aliphatic, residue_mass_mono: 71.03711,  pI: 6.01, smiles: "C[C@@H](C(=O)O)N"}
+  - {id: aa-ser, name: Serine,        three_letter: Ser, one_letter: S, side_chain_class: polar uncharged,    residue_mass_mono: 87.03203,  pI: 5.68, smiles: "C([C@@H](C(=O)O)N)O",
+     note: "Common phosphorylation site (+79.966 Da)."}
+  - {id: aa-pro, name: Proline,       three_letter: Pro, one_letter: P, side_chain_class: nonpolar aliphatic, residue_mass_mono: 97.05276,  pI: 6.48, smiles: "C1C[C@H](NC1)C(=O)O",
+     note: "Side chain loops back to the backbone nitrogen. Trypsin does not cleave before proline (K/R–P)."}
+  - {id: aa-val, name: Valine,        three_letter: Val, one_letter: V, side_chain_class: nonpolar aliphatic, residue_mass_mono: 99.06841,  pI: 5.97, smiles: "CC(C)[C@@H](C(=O)O)N"}
+  - {id: aa-thr, name: Threonine,     three_letter: Thr, one_letter: T, side_chain_class: polar uncharged,    residue_mass_mono: 101.04768, pI: 5.87, smiles: "C[C@H]([C@@H](C(=O)O)N)O",
+     note: "Phosphorylation site."}
+  - {id: aa-cys, name: Cysteine,      three_letter: Cys, one_letter: C, side_chain_class: polar uncharged,    residue_mass_mono: 103.00919, pI: 5.07, smiles: "C([C@@H](C(=O)O)N)S",
+     note: "Forms disulfide bonds. Usually alkylated in sample prep (carbamidomethyl, +57.021 Da)."}
+  - {id: aa-leu, name: Leucine,       three_letter: Leu, one_letter: L, side_chain_class: nonpolar aliphatic, residue_mass_mono: 113.08406, pI: 5.98, smiles: "CC(C)C[C@@H](C(=O)O)N",
+     note: "Isobaric with isoleucine: same mass, so standard MS/MS cannot tell them apart."}
+  - {id: aa-ile, name: Isoleucine,    three_letter: Ile, one_letter: I, side_chain_class: nonpolar aliphatic, residue_mass_mono: 113.08406, pI: 6.02, smiles: "CC[C@H](C)[C@@H](C(=O)O)N",
+     note: "Isobaric with leucine."}
+  - {id: aa-asn, name: Asparagine,    three_letter: Asn, one_letter: N, side_chain_class: polar uncharged,    residue_mass_mono: 114.04293, pI: 5.41, smiles: "C([C@@H](C(=O)O)N)C(=O)N",
+     note: "Deamidation to Asp adds +0.984 Da. N-glycosylation site (N-X-S/T)."}
+  - {id: aa-asp, name: Aspartic acid, three_letter: Asp, one_letter: D, side_chain_class: negatively charged, residue_mass_mono: 115.02694, pI: 2.77, smiles: "C([C@@H](C(=O)O)N)C(=O)O"}
+  - {id: aa-gln, name: Glutamine,     three_letter: Gln, one_letter: Q, side_chain_class: polar uncharged,    residue_mass_mono: 128.05858, pI: 5.65, smiles: "C(CC(=O)N)[C@@H](C(=O)O)N",
+     note: "Nearly isobaric with lysine (difference 0.036 Da); needs high resolution to separate."}
+  - {id: aa-lys, name: Lysine,        three_letter: Lys, one_letter: K, side_chain_class: positively charged, residue_mass_mono: 128.09496, pI: 9.74, smiles: "C(CCN)C[C@@H](C(=O)O)N",
+     note: "Trypsin cleaves after K and R."}
+  - {id: aa-glu, name: Glutamic acid, three_letter: Glu, one_letter: E, side_chain_class: negatively charged, residue_mass_mono: 129.04259, pI: 3.22, smiles: "C(CC(=O)O)[C@@H](C(=O)O)N"}
+  - {id: aa-met, name: Methionine,    three_letter: Met, one_letter: M, side_chain_class: nonpolar aliphatic, residue_mass_mono: 131.04049, pI: 5.74, smiles: "CSCC[C@@H](C(=O)O)N",
+     note: "Easily oxidized during sample handling (+15.995 Da)."}
+  - {id: aa-his, name: Histidine,     three_letter: His, one_letter: H, side_chain_class: positively charged, residue_mass_mono: 137.05891, pI: 7.59, smiles: "C1=C(NC=N1)C[C@@H](C(=O)O)N"}
+  - {id: aa-phe, name: Phenylalanine, three_letter: Phe, one_letter: F, side_chain_class: aromatic,           residue_mass_mono: 147.06841, pI: 5.48, smiles: "C1=CC=C(C=C1)C[C@@H](C(=O)O)N"}
+  - {id: aa-arg, name: Arginine,      three_letter: Arg, one_letter: R, side_chain_class: positively charged, residue_mass_mono: 156.10111, pI: 10.76, smiles: "C(C[C@@H](C(=O)O)N)CN=C(N)N",
+     note: "Trypsin cleaves after K and R."}
+  - {id: aa-tyr, name: Tyrosine,      three_letter: Tyr, one_letter: Y, side_chain_class: aromatic,           residue_mass_mono: 163.06333, pI: 5.66, smiles: "C1=CC(=CC=C1C[C@@H](C(=O)O)N)O",
+     note: "Phosphorylation site."}
+  - {id: aa-trp, name: Tryptophan,    three_letter: Trp, one_letter: W, side_chain_class: aromatic,           residue_mass_mono: 186.07931, pI: 5.89, smiles: "C1=CC=C2C(=C1)C(=CN2)C[C@@H](C(=O)O)N",
+     note: "Heaviest standard residue."}

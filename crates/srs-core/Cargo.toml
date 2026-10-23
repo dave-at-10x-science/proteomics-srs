@@ -1,0 +1,19 @@
+[package]
+name = "srs-core"
+version = "0.1.0"
+description = "Scheduling, queue building, and content model for the proteomics SRS. Pure logic, no I/O."
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chrono.workspace = true
+fsrs = "6.6.2"
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+thiserror.workspace = true
+
+# fsrs pulls in getrandom (via rand), which needs a JS backend in the browser.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { version = "0.4", features = ["wasm_js"] }

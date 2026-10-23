@@ -1,0 +1,23 @@
+{
+  "name": "proteomics-srs-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/copy-rdkit.mjs && nuxt prepare",
+    "dev": "nuxt dev",
+    "build": "nuxt generate",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@rdkit/rdkit": "2026.9.1",
+    "marked": "18.1.1",
+    "nuxt": "4.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@vite-pwa/nuxt": "1.1.1",
+    "typescript": "~5.9.3",
+    "vue-tsc": "3.3.13"
+  }
+}
