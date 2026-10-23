@@ -1,6 +1,8 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
+use srs_server::claude::Claude;
 use srs_server::{AppState, app, open_db, seed};
 use tracing_subscriber::EnvFilter;
 
@@ -50,6 +52,11 @@ async fn main() -> anyhow::Result<()> {
     std::fs::create_dir_all(&media_dir)?;
     let mut state = AppState::new(pool, media_dir);
     state.day_rollover_hour = config.day_rollover_hour;
+    state.claude = Claude::from_env().map(Arc::new);
+    match &state.claude {
+        Some(c) => tracing::info!(model = %c.model, "AI drafting enabled (server-side fallbacks on)"),
+        None => tracing::info!("AI drafting disabled: set ANTHROPIC_API_KEY to enable it"),
+    }
 
     let listener = tokio::net::TcpListener::bind(&config.bind).await?;
     tracing::info!("listening on http://{}", config.bind);

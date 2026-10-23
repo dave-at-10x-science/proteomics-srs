@@ -8,13 +8,40 @@ const set = ref<SetSummary | null>(null);
 const notes = ref<StoredNote[]>([]);
 const types = ref<Map<string, NoteType>>(new Map());
 const filter = ref('');
+const aiAvailable = ref(false);
+const drafting = ref(false);
+const publishing = ref(false);
 
 onMounted(async () => {
-  const [sets, ns, ts] = await Promise.all([api.sets(), api.setNotes(id.value), api.noteTypes()]);
+  const [sets, ns, ts, ai] = await Promise.all([
+    api.sets(),
+    api.setNotes(id.value),
+    api.noteTypes(),
+    api.draftStatus().catch(() => ({ available: false })),
+  ]);
   set.value = sets.find((s) => s.id === id.value) ?? null;
   notes.value = ns;
   types.value = new Map(ts.map((t) => [t.id, t]));
+  aiAvailable.value = ai.available;
 });
+
+async function reload() {
+  notes.value = await api.setNotes(id.value);
+}
+
+const drafts = computed(() => notes.value.filter((n) => n.status === 'draft'));
+
+async function publishAll() {
+  const n = drafts.value.length;
+  if (!confirm(`Publish ${n} ${n === 1 ? 'draft' : 'drafts'}? Their cards join your daily reviews.`)) return;
+  publishing.value = true;
+  try {
+    await api.publishDrafts(id.value);
+    await reload();
+  } finally {
+    publishing.value = false;
+  }
+}
 
 const shown = computed(() => {
   const q = filter.value.trim().toLowerCase();
@@ -28,7 +55,21 @@ const shown = computed(() => {
     <section v-if="set" class="card stack">
       <div class="head">
         <h1>{{ set.name }}</h1>
-        <NuxtLink :to="`/notes/new?set=${encodeURIComponent(set.id)}`"><button class="primary">Add</button></NuxtLink>
+        <div class="actions">
+          <button v-if="aiAvailable" :aria-expanded="drafting" @click="drafting = !drafting">Draft with AI</button>
+          <NuxtLink :to="`/notes/new?set=${encodeURIComponent(set.id)}`"><button class="primary">Add</button></NuxtLink>
+        </div>
+      </div>
+      <DraftPanel
+        v-if="drafting"
+        :set-id="set.id"
+        :note-types="[...types.values()]"
+        :empty="!notes.length"
+        @drafted="reload"
+      />
+      <div v-if="drafts.length" class="drafts">
+        <span class="muted">{{ drafts.length }} {{ drafts.length === 1 ? 'draft' : 'drafts' }} to check</span>
+        <button :disabled="publishing" @click="publishAll">Publish all</button>
       </div>
       <input v-if="notes.length > 8" v-model="filter" type="text" placeholder="Filter" />
       <p v-if="!notes.length" class="muted">No notes yet.</p>
@@ -52,9 +93,27 @@ const shown = computed(() => {
 }
 .head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+}
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.drafts {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--hard);
+  border-radius: var(--radius);
+}
+.drafts button {
+  min-height: 40px;
+  padding: 0.4rem 0.9rem;
 }
 h1 {
   margin: 0;

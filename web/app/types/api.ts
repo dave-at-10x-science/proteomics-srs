@@ -119,3 +119,13 @@ export interface GameBest {
   best_ms: number | null;
   fewest_flips: number | null;
 }
+
+export interface DraftStatus {
+  available: boolean;
+  model: string | null;
+}
+
+export interface DraftResult {
+  created: StoredNote[];
+  skipped: { title: string; reason: string }[];
+}

@@ -8,6 +8,7 @@ use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
+use srs_server::claude::Claude;
 use srs_server::{AppState, app, open_db, seed};
 use tower::ServiceExt;
 
@@ -19,6 +20,14 @@ struct TestApp {
 
 impl TestApp {
     async fn new() -> Self {
+        Self::build(None).await
+    }
+
+    async fn with_claude(base_url: String) -> Self {
+        Self::build(Some(Claude::new("test-key".into(), Some(base_url), None))).await
+    }
+
+    async fn build(claude: Option<Claude>) -> Self {
         let pool = open_db("sqlite::memory:").await.unwrap();
         let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
         assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 2);
@@ -27,6 +36,7 @@ impl TestApp {
         let media_dir = std::env::temp_dir().join(format!("srs-media-{}", std::process::id()));
         let mut state = AppState::new(pool.clone(), media_dir);
         state.clock = Arc::new(move || *clock_now.lock().unwrap());
+        state.claude = claude.map(Arc::new);
         Self {
             router: app(state, None),
             pool,
@@ -442,4 +452,177 @@ async fn memory_game_uses_only_introduced_notes_and_never_touches_the_schedule()
         .await
         .unwrap();
     assert_eq!(reviews, 10);
+}
+
+/// A stand-in for the Claude API that records each request body and answers with `reply`.
+async fn mock_claude(status: u16, reply: Value) -> (String, Arc<Mutex<Vec<(Value, String)>>>) {
+    use axum::http::HeaderMap;
+    let seen: Arc<Mutex<Vec<(Value, String)>>> = Arc::default();
+    let log = seen.clone();
+    let router = Router::new().route(
+        "/v1/messages",
+        axum::routing::post(move |headers: HeaderMap, axum::Json(body): axum::Json<Value>| {
+            let log = log.clone();
+            let reply = reply.clone();
+            async move {
+                let beta = headers["anthropic-beta"].to_str().unwrap().to_string();
+                log.lock().unwrap().push((body, beta));
+                (StatusCode::from_u16(status).unwrap(), axum::Json(reply))
+            }
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    (format!("http://{addr}"), seen)
+}
+
+fn claude_reply(notes: Value) -> Value {
+    json!({
+        "type": "message",
+        "role": "assistant",
+        "stop_reason": "end_turn",
+        "content": [{ "type": "text", "text": json!({ "notes": notes }).to_string() }],
+    })
+}
+
+#[tokio::test]
+async fn drafting_is_off_without_an_api_key() {
+    let t = TestApp::new().await;
+    assert_eq!(t.get("/api/draft/status").await["available"], false);
+    let (status, v) = t
+        .post(
+            "/api/sets/ms-vocabulary/draft",
+            json!({ "source": "ion mobility" }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{v}");
+    assert!(v["error"].as_str().unwrap().contains("ANTHROPIC_API_KEY"));
+}
+
+#[tokio::test]
+async fn drafted_notes_wait_as_drafts_until_published() {
+    let (url, seen) = mock_claude(
+        200,
+        claude_reply(json!([
+            { "term": "Ion mobility", "definition": "Separating ions by shape as they drift through gas.",
+              "technical": null, "example": null },
+            // Already in the vocabulary set.
+            { "term": "Precursor ion", "definition": "dup", "technical": null, "example": null },
+            // Breaks the note type: missing the required definition.
+            { "term": "Collision cross section", "definition": null, "technical": null, "example": null },
+        ])),
+    )
+    .await;
+    let t = TestApp::with_claude(url).await;
+    assert_eq!(t.get("/api/draft/status").await["available"], true);
+
+    let (status, v) = t
+        .post(
+            "/api/sets/ms-vocabulary/draft",
+            json!({ "source": "ion mobility terms", "count": 3 }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{v}");
+    assert_eq!(v["created"].as_array().unwrap().len(), 1, "{v}");
+    assert_eq!(v["created"][0]["id"], "term-ion-mobility");
+    assert_eq!(v["created"][0]["status"], "draft");
+    let skipped = v["skipped"].as_array().unwrap();
+    assert_eq!(skipped.len(), 2, "{v}");
+    assert_eq!(skipped[0]["reason"], "already in your library");
+    assert!(skipped[1]["reason"].as_str().unwrap().contains("definition"));
+
+    // The request asked for structured output against the note type's fields.
+    let (body, beta) = seen.lock().unwrap()[0].clone();
+    assert_eq!(beta, "server-side-fallback-2026-07-01");
+    assert_eq!(body["model"], "claude-opus-5-5");
+    assert_eq!(body["fallbacks"], "default");
+    assert!(body.get("temperature").is_none());
+    assert_eq!(body["output_config"]["format"]["type"], "json_schema");
+    let item = &body["output_config"]["format"]["schema"]["properties"]["notes"]["items"];
+    assert_eq!(
+        item["required"],
+        json!(["term", "definition", "technical", "example"])
+    );
+    assert!(body["system"].as_str().unwrap().contains("Precursor ion"));
+    assert!(
+        body["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("ion mobility terms")
+    );
+
+    // Drafts are never studied. Subscribe and check the queue holds no draft cards.
+    let (status, _) = t
+        .call(
+            "PUT",
+            "/api/sets/ms-vocabulary/subscription",
+            Some(json!({ "subscribed": true })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let draft_cards: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM card_state WHERE note_id = 'term-ion-mobility'")
+            .fetch_one(&t.pool)
+            .await
+            .unwrap();
+    assert_eq!(draft_cards, 0);
+    let mut seen_ids = Vec::new();
+    for _ in 0..40 {
+        let next = t.get("/api/review/next").await;
+        if next["card"].is_null() {
+            break;
+        }
+        seen_ids.push(next["card"]["note_id"].as_str().unwrap().to_string());
+        t.rate(&next["card"], "easy").await;
+    }
+    assert!(!seen_ids.iter().any(|id| id == "term-ion-mobility"));
+
+    let (status, v) = t.post("/api/sets/ms-vocabulary/publish-drafts", json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{v}");
+    assert_eq!(v["published"], 1);
+    assert_eq!(t.get("/api/notes/term-ion-mobility").await["status"], "published");
+}
+
+#[tokio::test]
+async fn refusals_and_api_errors_are_reported_plainly() {
+    let (url, _) = mock_claude(
+        200,
+        json!({ "type": "message", "stop_reason": "refusal", "content": [] }),
+    )
+    .await;
+    let t = TestApp::with_claude(url).await;
+    let (status, v) = t
+        .post("/api/sets/ms-vocabulary/draft", json!({ "source": "anything" }))
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{v}");
+    assert!(v["error"].as_str().unwrap().contains("declined"));
+
+    let (url, _) = mock_claude(
+        529,
+        json!({ "type": "error", "error": { "type": "overloaded_error", "message": "Overloaded" } }),
+    )
+    .await;
+    let t = TestApp::with_claude(url).await;
+    let (status, v) = t
+        .post("/api/sets/ms-vocabulary/draft", json!({ "source": "anything" }))
+        .await;
+    assert_eq!(status, StatusCode::BAD_GATEWAY, "{v}");
+    assert!(v["error"].as_str().unwrap().contains("Overloaded"));
+}
+
+#[tokio::test]
+async fn client_routes_are_served_the_app_shell() {
+    let pool = open_db("sqlite::memory:").await.unwrap();
+    let web = std::env::temp_dir().join(format!("srs-web-{}", std::process::id()));
+    std::fs::create_dir_all(&web).unwrap();
+    std::fs::write(web.join("index.html"), "<html>shell</html>").unwrap();
+    let router = app(AppState::new(pool, web.join("media")), Some(web));
+    let res = router
+        .oneshot(Request::get("/sets/ms-vocabulary").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(&body[..], b"<html>shell</html>");
 }

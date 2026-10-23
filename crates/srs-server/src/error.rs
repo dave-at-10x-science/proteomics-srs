@@ -9,6 +9,12 @@ pub enum ApiError {
     NotFound(String),
     #[error("{}", .0.join("; "))]
     Invalid(Vec<String>),
+    /// A feature that needs configuration the server doesn't have.
+    #[error("{0}")]
+    Unavailable(String),
+    /// An upstream service failed.
+    #[error("{0}")]
+    Upstream(String),
     #[error(transparent)]
     Internal(#[from] anyhow::Error),
 }
@@ -45,6 +51,11 @@ impl IntoResponse for ApiError {
                 StatusCode::UNPROCESSABLE_ENTITY,
                 json!({ "error": self.to_string(), "errors": errors }),
             ),
+            ApiError::Unavailable(_) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                json!({ "error": self.to_string() }),
+            ),
+            ApiError::Upstream(_) => (StatusCode::BAD_GATEWAY, json!({ "error": self.to_string() })),
             ApiError::Internal(e) => {
                 tracing::error!(error = ?e, "internal error");
                 (

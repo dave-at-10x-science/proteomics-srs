@@ -1,6 +1,7 @@
 //! Local server for the proteomics SRS: serves the web app and a JSON API over SQLite.
 
 pub mod api;
+pub mod claude;
 pub mod error;
 pub mod seed;
 pub mod store;
@@ -31,6 +32,8 @@ pub struct AppState {
     pub day_rollover_hour: u32,
     /// Uploaded images, named by content hash and served under `/media`.
     pub media_dir: PathBuf,
+    /// Drafting notes with Claude. `None` when no API key is configured.
+    pub claude: Option<Arc<claude::Claude>>,
 }
 
 impl AppState {
@@ -40,6 +43,7 @@ impl AppState {
             clock: Arc::new(Utc::now),
             day_rollover_hour: 4,
             media_dir,
+            claude: None,
         }
     }
 
@@ -100,9 +104,9 @@ pub fn app(state: AppState, web_dir: Option<PathBuf>) -> Router {
         .with_state(state);
     let router = match web_dir {
         Some(dir) if dir.join("index.html").exists() => {
-            // SPA: unknown paths fall back to index.html so client-side routes work on reload.
+            // SPA: unknown paths get index.html (with 200, not 404) so client-side routes work on reload.
             let index = ServeFile::new(dir.join("index.html"));
-            router.fallback_service(ServeDir::new(dir).not_found_service(index))
+            router.fallback_service(ServeDir::new(dir).fallback(index))
         }
         _ => router
             .fallback(|| async { "proteomics-srs API is running. Build the web app (web/) to get the UI." }),

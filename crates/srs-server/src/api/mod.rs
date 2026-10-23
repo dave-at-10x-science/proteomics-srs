@@ -1,6 +1,7 @@
 //! JSON API. Every handler acts as [`crate::LOCAL_USER`] until accounts exist.
 
 mod content;
+mod draft;
 mod game;
 mod media;
 mod review;
@@ -22,6 +23,9 @@ pub fn router() -> Router<AppState> {
         .route("/sets", get(content::list_sets).post(content::create_set))
         .route("/sets/{id}/subscription", put(content::set_subscription))
         .route("/sets/{id}/notes", get(content::list_set_notes))
+        .route("/sets/{id}/draft", post(draft::draft))
+        .route("/sets/{id}/publish-drafts", post(draft::publish_drafts))
+        .route("/draft/status", get(draft::status))
         .route("/note-types", get(content::list_note_types))
         .route("/note-types/{id}", get(content::get_note_type))
         .route("/notes", post(content::create_note))

@@ -55,6 +55,21 @@ added, and notes you've edited in the app are left alone.
 | `SRS_SEED_DIR` | `seed` | Set files to import |
 | `SRS_WEB_DIR` | `web/.output/public` | Built web app to serve |
 | `SRS_DAY_ROLLOVER_HOUR` | `4` | Local hour a new study day starts |
+| `ANTHROPIC_API_KEY` | unset | Turns on AI drafting |
+| `SRS_CLAUDE_MODEL` | `claude-opus-5-5` | Model used for drafting |
+| `SRS_ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Claude API endpoint (tests point it at a mock) |
+
+### AI drafting
+
+With `ANTHROPIC_API_KEY` set, each set's page has **Draft with AI**. Describe a topic, list
+some terms, or paste text from a paper, and Claude drafts notes that fit the set's note type
+(structured output against the note type's fields). Drafts land in the set marked `draft`:
+they are never studied until you open each one, fix what needs fixing, and publish it, or
+press **Publish all**. Anything that duplicates a note already in your library, or doesn't fit
+the note type, is skipped and listed. Requests opt into server-side fallbacks
+(`fallbacks: "default"`), so if the primary model declines a request the API can retry it on
+a fallback model instead of returning the refusal.
+
 
 ### API
 
@@ -66,6 +81,9 @@ added, and notes you've edited in the app are left alone.
 | GET/POST | `/api/sets` | List sets, create a set |
 | PUT | `/api/sets/{id}/subscription` | `{subscribed: bool}` |
 | GET | `/api/sets/{id}/notes` | Notes in a set |
+| POST | `/api/sets/{id}/draft` | Draft notes with Claude: `{source, count?, note_type_id?}`; returns `{created, skipped}` |
+| POST | `/api/sets/{id}/publish-drafts` | Publish every draft in the set |
+| GET | `/api/draft/status` | Whether drafting is configured, and the model |
 | GET | `/api/note-types`, `/api/note-types/{id}` | Field and template definitions |
 | POST | `/api/media` | Upload an image (raw body, `Content-Type: image/*`); returns `{url}` |
 | POST | `/api/notes` | Add a note: `{set_id, note_type_id, fields, id?, status?}` |

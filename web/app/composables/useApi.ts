@@ -1,6 +1,8 @@
 import type {
   Board,
   CheckResponse,
+  DraftResult,
+  DraftStatus,
   GameBest,
   GameOption,
   FieldValue,
@@ -48,6 +50,11 @@ export function useApi() {
       duration_ms: number;
       completed: boolean;
     }) => $fetch<GameBest>('/api/game/results', { method: 'POST', body }),
+    draftStatus: () => $fetch<DraftStatus>('/api/draft/status'),
+    draft: (setId: string, body: { source: string; count: number; note_type_id?: string }) =>
+      $fetch<DraftResult>(`/api/sets/${encodeURIComponent(setId)}/draft`, { method: 'POST', body }),
+    publishDrafts: (setId: string) =>
+      $fetch<{ published: number }>(`/api/sets/${encodeURIComponent(setId)}/publish-drafts`, { method: 'POST' }),
     uploadImage: (file: File) =>
       $fetch<{ url: string }>('/api/media', { method: 'POST', body: file, headers: { 'content-type': file.type } }),
   };
