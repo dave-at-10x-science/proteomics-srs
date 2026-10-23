@@ -10,18 +10,28 @@ matching-pairs memory game for practice. Structures are drawn from SMILES. See
 ```
 crates/srs-core/   Scheduling (FSRS), daily queue, content model, answer checking. No I/O; builds for WASM.
 crates/srs-server/ Local server: JSON API + serves the web app. SQLite in data/.
+web/               Nuxt SPA, installable as a PWA. Structures drawn from SMILES with RDKit.js.
 seed/              Starter sets as YAML. The 20 amino acids are the default set.
 tools/             Content helpers (SMILES validation and structure previews).
 docs/              Design notes.
 ```
 
-Coming next: `web/` (Nuxt SPA, installable as a PWA).
-
 ## Running it
 
 ```sh
+(cd web && npm install && npm run build)   # once, and after pulling web changes
 cargo run -p srs-server
 ```
+
+Then open `http://localhost:8080`.
+
+**On your phone:** on the same Wi-Fi, open `http://<your-computer's-LAN-IP>:8080`. Installing it
+to the home screen as an app needs HTTPS. The easiest way while running locally is
+[Tailscale](https://tailscale.com): run `tailscale serve 8080` on the computer and open the
+`https://<machine>.<tailnet>.ts.net` address on the phone (also works away from home).
+
+**Developing the web app:** run the server, then `cd web && npm run dev` for hot reload on
+`http://localhost:3000` (it proxies `/api` to the server on port 8080).
 
 This creates `data/srs.sqlite`, imports everything under `seed/` (the amino acids are
 subscribed by default), and listens on `http://0.0.0.0:8080` so a phone on the same Wi-Fi can

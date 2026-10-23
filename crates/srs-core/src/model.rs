@@ -22,6 +22,9 @@ pub enum FieldType {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FieldDef {
     pub name: String,
+    /// Display label; defaults to the name in the UI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     #[serde(rename = "type")]
     pub field_type: FieldType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
