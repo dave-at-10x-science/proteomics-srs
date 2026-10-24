@@ -1,6 +1,8 @@
 # proteomics-srs
 Spaced repetition system for learning about proteomic and mass spectrometry
 
+Blargy was here.
+
 A daily study tool: a short queue of due cards on your phone, scheduled with FSRS, plus a
 matching-pairs memory game for practice. Structures are drawn from SMILES. See
 [docs/design-proposal.md](docs/design-proposal.md) for the full design.
