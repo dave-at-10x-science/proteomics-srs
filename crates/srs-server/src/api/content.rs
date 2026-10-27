@@ -39,6 +39,18 @@ pub async fn put_settings(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ResetResponse {
+    /// Reviews removed from the history.
+    pub reviews_removed: u64,
+}
+
+/// Start over as if for the first time. Notes, sets, subscriptions and settings are kept.
+pub async fn reset_progress(State(state): State<AppState>) -> ApiResult<Json<ResetResponse>> {
+    let reviews_removed = store::reset_progress(&state.pool, LOCAL_USER).await?;
+    Ok(Json(ResetResponse { reviews_removed }))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SetSummary {
     pub id: String,
     pub name: String,

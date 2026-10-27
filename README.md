@@ -52,6 +52,9 @@ you miss comes back in a later round. Do as many rounds as you like; due cards n
 just wait. Typed and multiple-choice answers grade themselves: a wrong answer is recorded as
 Again, and a right one offers Hard / Good / Easy with Good focused, so Enter moves on.
 
+**Start over** from Settings to forget all progress (studied notes, schedules, review history,
+game results) and begin as if for the first time. Sets, notes and settings are kept.
+
 **Browse** (in the header) flips through a set like flash cards, with every field shown. It
 doesn't change your review schedule.
 
@@ -110,6 +113,7 @@ a fallback model instead of returning the refusal.
 | GET | `/api/game/board` | `?set=&a=&b=&pairs=` a shuffled board of studied notes |
 | POST | `/api/game/results` | Record a game; returns personal bests |
 | GET/PUT | `/api/settings` | Review cap, target retention |
+| POST | `/api/progress/reset` | Start over: clears schedules, review history, studied notes and game results |
 
 ## Development
 

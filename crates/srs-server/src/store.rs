@@ -166,6 +166,25 @@ pub async fn mark_studied(
     Ok(added)
 }
 
+/// Forget everything the user has done: schedules, review history, studied notes and game
+/// results. Content, subscriptions and settings stay. Returns the number of reviews removed.
+pub async fn reset_progress(pool: &SqlitePool, user: i64) -> ApiResult<u64> {
+    let mut tx = pool.begin().await?;
+    let reviews = sqlx::query("DELETE FROM review_log WHERE user_id = ?")
+        .bind(user)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+    for table in ["card_state", "studied_notes", "game_sessions"] {
+        sqlx::query(&format!("DELETE FROM {table} WHERE user_id = ?"))
+            .bind(user)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await?;
+    Ok(reviews)
+}
+
 /// The first set (by id) containing the note.
 pub async fn set_of_note(pool: &SqlitePool, note_id: &str) -> ApiResult<Option<String>> {
     Ok(

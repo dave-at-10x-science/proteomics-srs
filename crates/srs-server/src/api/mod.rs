@@ -21,6 +21,7 @@ pub fn router() -> Router<AppState> {
             get(|| async { axum::Json(json!({ "ok": true })) as axum::Json<Value> }),
         )
         .route("/settings", get(content::get_settings).put(content::put_settings))
+        .route("/progress/reset", post(content::reset_progress))
         .route("/sets", get(content::list_sets).post(content::create_set))
         .route("/sets/{id}/subscription", put(content::set_subscription))
         .route("/sets/{id}/notes", get(content::list_set_notes))

@@ -706,3 +706,36 @@ async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn reset_starts_over_as_if_for_the_first_time() {
+    let t = TestApp::new().await;
+    t.study(3).await;
+    let card = t.get("/api/review/next").await["card"].clone();
+    t.rate(&card, "good").await;
+    t.post(
+        "/api/game/results",
+        json!({ "set_id": "amino-acids-20", "a": "structure", "b": "name", "pairs": 8, "flips": 22, "duration_ms": 61000, "completed": true }),
+    )
+    .await;
+
+    let (status, v) = t.post("/api/progress/reset", json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{v}");
+    assert_eq!(v["reviews_removed"], 1);
+
+    let round = t.get("/api/review/round").await;
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 0 }));
+    assert_eq!(round["unstudied"], 20);
+    assert_eq!(t.get("/api/game/options").await, json!([]));
+    for table in ["card_state", "review_log", "studied_notes", "game_sessions"] {
+        let n: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+            .fetch_one(&t.pool)
+            .await
+            .unwrap();
+        assert_eq!(n, 0, "{table}");
+    }
+    // Content and subscriptions are untouched.
+    let sets = t.get("/api/sets").await;
+    assert_eq!(sets[0]["subscribed"], true);
+    assert_eq!(sets[0]["note_count"], 20);
+}
