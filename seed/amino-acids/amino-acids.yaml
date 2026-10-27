@@ -28,11 +28,20 @@ note_type:
       smiles: "NCC(=O)O"
       coords: [[-1.3, -0.75], [0.0, 0.0], [1.3, -0.75], [1.3, -2.25], [2.6, 0.0]]  # N, CA, C, =O, OH
   templates:
+    # Name, three-letter code and one-letter code are separate cards, so each is scheduled on
+    # its own: knowing the code doesn't hide a shaky name.
     - id: structure-to-name
       prompt: [structure]
-      answer: [name, three_letter, one_letter]
+      answer: [name]
       mode: typed
-      accept: [name, three_letter, one_letter]
+    - id: structure-to-three-letter
+      prompt: [structure]
+      answer: [three_letter]
+      mode: typed
+    - id: structure-to-one-letter
+      prompt: [structure]
+      answer: [one_letter]
+      mode: typed
     - id: one-letter-to-name
       prompt: [one_letter]
       answer: [name]

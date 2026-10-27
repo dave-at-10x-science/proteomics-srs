@@ -43,6 +43,8 @@ pub fn router() -> Router<AppState> {
         .route("/game/board", get(game::board))
         .route("/game/results", post(game::record))
         .route("/review/next", get(review::next))
+        .route("/review/round", get(review::round))
+        .route("/review/card", get(review::card))
         .route("/review/check", post(review::check))
         .route("/review/answer", post(review::answer))
 }

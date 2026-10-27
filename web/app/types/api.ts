@@ -62,6 +62,18 @@ export interface NextResponse {
   card: ReviewCard | null;
 }
 
+export interface CardRef {
+  note_id: string;
+  template_id: string;
+}
+
+export interface RoundResponse {
+  /** Everything available to study now. */
+  counts: Counts;
+  /** The round, in order. */
+  cards: CardRef[];
+}
+
 export interface CheckResponse {
   correct: boolean;
   expected: Record<string, FieldValue>;

@@ -8,6 +8,9 @@
 //!
 //! Siblings (cards from the same note) are buried: at most one card per note per day, counting
 //! notes already reviewed earlier in the day.
+//!
+//! A study round ([`build_round`]) is a fixed slice of that queue: due cards first, then new cards
+//! to fill it up to the chosen size.
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -86,6 +89,23 @@ impl DailyQueue {
         }
         out
     }
+}
+
+/// Pick a round of at most `size` cards: learning and review cards that are due come first, then
+/// new cards fill whatever room is left. The result is in presentation order.
+pub fn build_round(
+    candidates: &[Candidate],
+    options: &QueueOptions,
+    today: &Today,
+    size: usize,
+) -> Vec<CardId> {
+    let mut queue = build_queue(candidates, options, today);
+    queue.learning.truncate(size);
+    queue.review.truncate(size - queue.learning.len());
+    queue
+        .new
+        .truncate(size - queue.learning.len() - queue.review.len());
+    queue.ordered()
 }
 
 pub fn build_queue(candidates: &[Candidate], options: &QueueOptions, today: &Today) -> DailyQueue {
@@ -270,6 +290,30 @@ mod tests {
             ..today()
         };
         assert_eq!(build_queue(&cards, &opts, &t).review.len(), 4);
+    }
+
+    #[test]
+    fn rounds_take_due_cards_first_then_fill_with_new() {
+        let mut cards: Vec<_> = (0..3)
+            .map(|i| card("aa", &format!("r{i}"), "t", Phase::Review, -Duration::hours(1)))
+            .collect();
+        cards.push(card("aa", "l", "t", Phase::Learning, -Duration::minutes(1)));
+        cards.extend((0..10).map(|i| new("aa", &format!("n{i}"), "t")));
+        let opts = QueueOptions::default();
+
+        let round = build_round(&cards, &opts, &today(), 6);
+        let notes: Vec<_> = round.iter().map(|c| c.note_id.as_str()).collect();
+        assert_eq!(notes.len(), 6);
+        assert_eq!(notes[0], "l");
+        assert_eq!(notes.iter().filter(|n| n.starts_with('r')).count(), 3);
+        assert_eq!(notes.iter().filter(|n| n.starts_with('n')).count(), 2);
+
+        // A small round is all due cards, no new ones.
+        let round = build_round(&cards, &opts, &today(), 2);
+        assert!(round.iter().all(|c| !c.note_id.starts_with('n')));
+
+        // A big round is limited by what is due plus the daily new-card limit.
+        assert_eq!(build_round(&cards, &opts, &today(), 50).len(), 14);
     }
 
     #[test]

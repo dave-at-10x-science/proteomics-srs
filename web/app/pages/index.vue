@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { NextResponse, SetSummary } from '~/types/api';
+import type { Counts, SetSummary } from '~/types/api';
 
 const api = useApi();
-const next = ref<NextResponse | null>(null);
+const counts = ref<Counts | null>(null);
 const sets = ref<SetSummary[]>([]);
 const error = ref('');
 
 async function load() {
   try {
-    [next.value, sets.value] = await Promise.all([api.next(), api.sets()]);
+    let round;
+    [round, sets.value] = await Promise.all([api.round(1), api.sets()]);
+    counts.value = round.counts;
     error.value = '';
   } catch {
     error.value = 'Could not reach the server. Is srs-server running?';
@@ -21,7 +23,7 @@ async function toggle(set: SetSummary) {
 }
 
 const total = computed(() => {
-  const c = next.value?.counts;
+  const c = counts.value;
   return c ? c.learning + c.review + c.new : 0;
 });
 
@@ -32,17 +34,20 @@ onMounted(load);
   <div class="stack">
     <p v-if="error" class="card error">{{ error }}</p>
 
-    <section v-if="next" class="card today">
+    <section v-if="counts" class="card today">
       <h1>Today</h1>
       <div class="counts">
-        <div><strong>{{ next.counts.review }}</strong><span>to review</span></div>
-        <div><strong>{{ next.counts.new }}</strong><span>new</span></div>
-        <div><strong>{{ next.counts.learning }}</strong><span>learning</span></div>
+        <div><strong>{{ counts.review }}</strong><span>to review</span></div>
+        <div><strong>{{ counts.new }}</strong><span>new</span></div>
+        <div><strong>{{ counts.learning }}</strong><span>learning</span></div>
       </div>
-      <NuxtLink v-if="total > 0" to="/review">
-        <button class="primary start">Start review</button>
-      </NuxtLink>
-      <p v-else class="muted done">All done for today. Come back tomorrow.</p>
+      <div class="actions">
+        <NuxtLink v-if="total > 0" to="/review">
+          <button class="primary start">Start a round</button>
+        </NuxtLink>
+        <p v-else class="muted done">All done for today. Come back tomorrow.</p>
+        <NuxtLink to="/browse"><button class="start">Browse cards</button></NuxtLink>
+      </div>
     </section>
 
     <section v-if="sets.length" class="card">
@@ -84,6 +89,10 @@ h2 {
 }
 .start {
   width: 100%;
+}
+.actions {
+  display: grid;
+  gap: 0.5rem;
 }
 .done {
   text-align: center;

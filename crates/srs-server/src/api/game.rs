@@ -314,6 +314,8 @@ mod tests {
             pairs,
             [
                 ("structure", "name"),
+                ("structure", "three_letter"),
+                ("structure", "one_letter"),
                 ("one_letter", "name"),
                 ("three_letter", "name"),
                 ("structure", "side_chain_class"),
@@ -321,6 +323,6 @@ mod tests {
             ]
         );
         assert_eq!(p[0].label, "Structure ↔ Name");
-        assert_eq!(p[1].label, "One-letter code ↔ Name");
+        assert_eq!(p[3].label, "One-letter code ↔ Name");
     }
 }

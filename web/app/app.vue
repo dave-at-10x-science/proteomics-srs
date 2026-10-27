@@ -3,6 +3,7 @@
     <header>
       <NuxtLink to="/" class="title">Proteomics SRS</NuxtLink>
       <nav>
+        <NuxtLink to="/browse">Browse</NuxtLink>
         <NuxtLink to="/game">Game</NuxtLink>
         <NuxtLink to="/library">Library</NuxtLink>
         <NuxtLink to="/settings">Settings</NuxtLink>

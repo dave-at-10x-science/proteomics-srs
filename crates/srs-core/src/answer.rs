@@ -49,15 +49,24 @@ mod tests {
     }
 
     #[test]
-    fn structure_to_name_accepts_name_or_either_code() {
+    fn structure_cards_each_ask_for_one_thing() {
         let file = seed();
-        let t = file.note_type.template("structure-to-name").unwrap();
         let ile = file.notes.iter().find(|n| n.id == "aa-ile").unwrap();
-        for ok in ["Isoleucine", "  isoleucine ", "ILE", "i"] {
-            assert!(check(t, ile, ok), "{ok:?} should be accepted");
-        }
-        for bad in ["leucine", "L", "", "iso leucine"] {
-            assert!(!check(t, ile, bad), "{bad:?} should be rejected");
+        let cases = [
+            (
+                "structure-to-name",
+                "  isoleucine ",
+                ["ILE", "i", "leucine", "iso leucine"],
+            ),
+            ("structure-to-three-letter", "ile", ["Isoleucine", "i", "Leu", ""]),
+            ("structure-to-one-letter", "I", ["Isoleucine", "Ile", "L", ""]),
+        ];
+        for (template, ok, bad) in cases {
+            let t = file.note_type.template(template).unwrap();
+            assert!(check(t, ile, ok), "{template}: {ok:?} should be accepted");
+            for b in bad {
+                assert!(!check(t, ile, b), "{template}: {b:?} should be rejected");
+            }
         }
     }
 

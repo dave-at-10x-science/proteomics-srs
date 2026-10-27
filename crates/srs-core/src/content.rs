@@ -156,7 +156,7 @@ mod tests {
 
         let cards = file.cards();
         assert_eq!(cards.len(), 20 * file.note_type.templates.len());
-        assert_eq!(cards.iter().filter(|c| c.enabled).count(), 100);
+        assert_eq!(cards.iter().filter(|c| c.enabled).count(), 140);
     }
 
     #[test]

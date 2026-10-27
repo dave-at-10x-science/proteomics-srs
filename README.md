@@ -41,6 +41,14 @@ Add and edit cards in the app under **Library**: create sets, add notes with a l
 preview as you type SMILES, upload images for things SMILES can't draw, and mark notes as drafts
 to keep them out of review. Uploaded images are stored in `data/media/`.
 
+**Studying** happens in rounds. Pick a size (10 by default): due cards come first, then new cards
+fill the round. Each card is shown once per round; one you miss comes back in a later round.
+Typed and multiple-choice answers grade themselves: a wrong answer is recorded as Again, and a
+right one offers Hard / Good / Easy with Good focused, so Enter moves on.
+
+**Browse** (in the header) flips through a set like flash cards, with every field shown. It
+doesn't change your review schedule.
+
 **Memory game** (Game in the header): match pairs such as structure ↔ name or one-letter code ↔
 name, using only notes you've already studied. Results are kept for personal bests, and the game
 never changes your review schedule.
@@ -75,6 +83,8 @@ a fallback model instead of returning the refusal.
 
 | Method | Path | |
 |---|---|---|
+| GET | `/api/review/round` | `?size=` (default 10) what's available now, and a round of cards: due first, then new |
+| GET | `/api/review/card` | `?note_id=&template_id=` one card, with everything needed to render it |
 | GET | `/api/review/next` | Today's counts and the next card, with everything needed to render it |
 | POST | `/api/review/check` | Check a typed answer: `{note_id, template_id, input}` |
 | POST | `/api/review/answer` | Submit a rating (`again`/`hard`/`good`/`easy`); returns the next card |

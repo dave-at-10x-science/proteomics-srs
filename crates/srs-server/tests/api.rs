@@ -96,7 +96,7 @@ async fn default_set_is_imported_and_subscribed() {
     assert_eq!(sets[0]["id"], "amino-acids-20");
     assert_eq!(sets[0]["subscribed"], true);
     assert_eq!(sets[0]["note_count"], 20);
-    assert_eq!(sets[0]["card_count"], 100);
+    assert_eq!(sets[0]["card_count"], 140);
 }
 
 #[tokio::test]
@@ -120,9 +120,9 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
-    // 20 amino acids x 6 templates, 24 terms x 2 templates.
+    // 20 amino acids x 8 templates, 24 terms x 2 templates.
     assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 44);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 168);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 208);
     assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 44);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
@@ -227,7 +227,7 @@ async fn typed_answers_are_checked() {
     let t = TestApp::new().await;
     let req =
         |input: &str| json!({ "note_id": "aa-ile", "template_id": "structure-to-name", "input": input });
-    let (_, ok) = t.post("/api/review/check", req("ile")).await;
+    let (_, ok) = t.post("/api/review/check", req("isoleucine")).await;
     assert_eq!(ok["correct"], true);
     assert_eq!(ok["expected"]["name"], "Isoleucine");
     let (_, bad) = t.post("/api/review/check", req("leucine")).await;
@@ -274,7 +274,7 @@ async fn notes_can_be_added_to_a_new_set() {
         .find(|s| s["id"] == "proteases")
         .unwrap();
     assert_eq!(proteases["note_count"], 1);
-    assert_eq!(proteases["card_count"], 5);
+    assert_eq!(proteases["card_count"], 7);
 
     let (status, _) = t
         .call("DELETE", "/api/notes/aminoacid-selenocysteine", None)
@@ -625,4 +625,38 @@ async fn client_routes_are_served_the_app_shell() {
     assert_eq!(res.status(), StatusCode::OK);
     let body = res.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(&body[..], b"<html>shell</html>");
+}
+
+#[tokio::test]
+async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
+    let t = TestApp::new().await;
+    let round = t.get("/api/review/round?size=4").await;
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 10 }));
+    let cards = round["cards"].as_array().unwrap().clone();
+    assert_eq!(cards.len(), 4);
+
+    // Fail the first card: it is due again in minutes, but the round's list doesn't change.
+    for (i, id) in cards.iter().enumerate() {
+        let uri = format!(
+            "/api/review/card?note_id={}&template_id={}",
+            id["note_id"].as_str().unwrap(),
+            id["template_id"].as_str().unwrap()
+        );
+        let card = t.get(&uri).await;
+        assert_eq!(card["phase"], "new");
+        t.rate(&card, if i == 0 { "again" } else { "good" }).await;
+    }
+
+    // The next round picks up the failed card (learn-ahead) plus the remaining new cards.
+    let round = t.get("/api/review/round").await;
+    assert_eq!(round["counts"], json!({ "learning": 1, "review": 0, "new": 6 }));
+    assert_eq!(round["cards"][0], cards[0]);
+    assert_eq!(round["cards"].as_array().unwrap().len(), 7);
+
+    let (status, _) = t.call("GET", "/api/review/round?size=0", None).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let (status, _) = t
+        .call("GET", "/api/review/card?note_id=aa-gly&template_id=nope", None)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
