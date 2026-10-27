@@ -1,14 +1,20 @@
 //! The review loop: get the next card, optionally check a typed answer, submit a rating.
+//!
+//! Cards enter review once their note has been studied (see `study`). The app reviews in rounds:
+//! it asks for a round of a chosen size up front, then fetches and answers each card in turn. A
+//! card is shown at most once per round, even if a rating makes it due again before the round
+//! ends.
 
 use std::collections::BTreeMap;
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use chrono::Duration;
+use rand::RngExt;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use srs_core::model::{AnswerMode, CardId, CardTemplate, NoteType};
-use srs_core::queue::{QueueOptions, build_queue};
+use srs_core::queue::{QueueOptions, Today, build_queue, build_round};
 use srs_core::scheduler::{CardState, FsrsScheduler, Phase, Rating, Scheduler};
 use srs_core::{Note, answer};
 
@@ -60,6 +66,82 @@ async fn scheduler(state: &AppState) -> ApiResult<FsrsScheduler> {
     Ok(FsrsScheduler::default().with_retention(settings.desired_retention))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct RoundQuery {
+    pub size: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoundResponse {
+    /// Everything available to study now (learning cards due within the learn-ahead window).
+    pub counts: Counts,
+    /// The round, in presentation order.
+    pub cards: Vec<CardId>,
+    /// Notes in subscribed sets not studied yet, whose cards aren't in rotation.
+    pub unstudied: usize,
+}
+
+const DEFAULT_ROUND: usize = 10;
+const MAX_ROUND: usize = 200;
+
+/// Pick a round of cards from everything due, at random if more are due than fit.
+pub async fn round(
+    State(state): State<AppState>,
+    Query(q): Query<RoundQuery>,
+) -> ApiResult<Json<RoundResponse>> {
+    let size = q.size.unwrap_or(DEFAULT_ROUND);
+    if size == 0 || size > MAX_ROUND {
+        return Err(ApiError::Invalid(vec![format!(
+            "round size must be 1 to {MAX_ROUND}"
+        )]));
+    }
+    let now = state.now();
+    let (day_start, day_end) = state.study_day(now);
+    let settings = store::settings(&state.pool, LOCAL_USER).await?;
+    let candidates = store::candidates(&state.pool, LOCAL_USER, now).await?;
+    let unstudied = store::unstudied_notes(&state.pool, LOCAL_USER).await?.len();
+    // Learning cards due shortly count as due, so a round started right after another still
+    // picks up the cards just failed.
+    let today = Today {
+        now: now + LEARN_AHEAD,
+        ..store::today(&state.pool, LOCAL_USER, now, day_start, day_end).await?
+    };
+    let options = QueueOptions {
+        reviews_per_day: settings.reviews_per_day.map(|v| v as usize),
+    };
+    let queue = build_queue(&candidates, &options, &today);
+    Ok(Json(RoundResponse {
+        counts: Counts {
+            learning: queue.learning.len(),
+            review: queue.review.len(),
+            new: queue.new.len(),
+        },
+        cards: build_round(&candidates, &options, &today, size, |n| {
+            rand::rng().random_range(0..n)
+        }),
+        unstudied,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CardQuery {
+    pub note_id: String,
+    pub template_id: String,
+}
+
+/// One card, ready to render, with its current intervals.
+pub async fn card(State(state): State<AppState>, Query(q): Query<CardQuery>) -> ApiResult<Json<ReviewCard>> {
+    let id = CardId::new(q.note_id, q.template_id);
+    if !store::card_exists(&state.pool, &id).await? {
+        return Err(ApiError::NotFound(format!("card `{id}`")));
+    }
+    let set_id = store::set_of_note(&state.pool, &id.note_id)
+        .await?
+        .ok_or_else(|| ApiError::NotFound(format!("set for note `{}`", id.note_id)))?;
+    let card_state = store::card_state(&state.pool, LOCAL_USER, &id, state.now()).await?;
+    Ok(Json(review_card(&state, &id, &set_id, &card_state).await?))
+}
+
 pub async fn next(State(state): State<AppState>) -> ApiResult<Json<NextResponse>> {
     Ok(Json(next_card(&state).await?))
 }
@@ -71,7 +153,6 @@ async fn next_card(state: &AppState) -> ApiResult<NextResponse> {
     let candidates = store::candidates(&state.pool, LOCAL_USER, now).await?;
     let today = store::today(&state.pool, LOCAL_USER, now, day_start, day_end).await?;
     let options = QueueOptions {
-        new_per_day: settings.new_per_day as usize,
         reviews_per_day: settings.reviews_per_day.map(|v| v as usize),
     };
     let queue = build_queue(&candidates, &options, &today);

@@ -1,5 +1,6 @@
 import type {
   Board,
+  CardRef,
   CheckResponse,
   DraftResult,
   DraftStatus,
@@ -9,9 +10,12 @@ import type {
   NextResponse,
   NoteType,
   Rating,
+  ReviewCard,
+  RoundResponse,
   SetSummary,
   Settings,
   StoredNote,
+  StudyBatch,
 } from '~/types/api';
 
 type Fields = Record<string, FieldValue>;
@@ -20,6 +24,11 @@ type Status = 'draft' | 'published';
 export function useApi() {
   return {
     next: () => $fetch<NextResponse>('/api/review/next'),
+    round: (size?: number) => $fetch<RoundResponse>('/api/review/round', { query: size ? { size } : {} }),
+    studyBatch: (size: number) => $fetch<StudyBatch>('/api/study/batch', { query: { size } }),
+    markStudied: (note_ids: string[]) =>
+      $fetch<{ added: number }>('/api/study/studied', { method: 'POST', body: { note_ids } }),
+    card: (ref: CardRef) => $fetch<ReviewCard>('/api/review/card', { query: { ...ref } }),
     check: (note_id: string, template_id: string, input: string) =>
       $fetch<CheckResponse>('/api/review/check', { method: 'POST', body: { note_id, template_id, input } }),
     answer: (body: { note_id: string; template_id: string; rating: Rating; duration_ms?: number; answer?: string }) =>

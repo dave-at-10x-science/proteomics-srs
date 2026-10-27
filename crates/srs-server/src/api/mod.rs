@@ -5,6 +5,7 @@ mod draft;
 mod game;
 mod media;
 mod review;
+mod study;
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
@@ -42,7 +43,11 @@ pub fn router() -> Router<AppState> {
         .route("/game/options", get(game::options))
         .route("/game/board", get(game::board))
         .route("/game/results", post(game::record))
+        .route("/study/batch", get(study::batch))
+        .route("/study/studied", post(study::studied))
         .route("/review/next", get(review::next))
+        .route("/review/round", get(review::round))
+        .route("/review/card", get(review::card))
         .route("/review/check", post(review::check))
         .route("/review/answer", post(review::answer))
 }

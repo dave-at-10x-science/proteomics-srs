@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import type { Rating } from '~/types/api';
 
-defineProps<{ intervals: Record<Rating, number>; suggested?: Rating; disabled?: boolean }>();
+const props = defineProps<{
+  intervals: Record<Rating, number>;
+  suggested?: Rating;
+  disabled?: boolean;
+  /** Ratings to offer; all four by default. */
+  only?: Rating[];
+}>();
 const emit = defineEmits<{ rate: [Rating] }>();
 
 const ratings: { id: Rating; label: string; key: string }[] = [
@@ -11,20 +17,33 @@ const ratings: { id: Rating; label: string; key: string }[] = [
   { id: 'easy', label: 'Easy', key: '4' },
 ];
 
+const shown = computed(() => ratings.filter((r) => !props.only || props.only.includes(r.id)));
+
+// The suggested rating gets keyboard focus, so Enter takes it.
+const buttons = ref<HTMLButtonElement[]>([]);
+function focusSuggested() {
+  const i = shown.value.findIndex((r) => r.id === props.suggested);
+  if (i >= 0) buttons.value[i]?.focus();
+}
+
 // Keyboard shortcuts 1-4 on desktop.
 function onKey(e: KeyboardEvent) {
   if (e.target instanceof HTMLInputElement) return;
-  const r = ratings.find((r) => r.key === e.key);
+  const r = shown.value.find((r) => r.key === e.key);
   if (r) emit('rate', r.id);
 }
-onMounted(() => window.addEventListener('keydown', onKey));
+onMounted(() => {
+  window.addEventListener('keydown', onKey);
+  nextTick(focusSuggested);
+});
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <div class="ratings">
+  <div class="ratings" :style="{ gridTemplateColumns: `repeat(${shown.length}, 1fr)` }">
     <button
-      v-for="r in ratings"
+      v-for="r in shown"
+      ref="buttons"
       :key="r.id"
       :class="[r.id, { suggested: suggested === r.id }]"
       :disabled="disabled"
@@ -39,7 +58,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 <style scoped>
 .ratings {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 0.5rem;
 }
 button {
@@ -71,5 +89,13 @@ button {
 }
 .suggested {
   box-shadow: 0 0 0 3px var(--focus);
+}
+.suggested.good {
+  background: var(--good);
+  color: #fff;
+}
+.suggested.good .interval {
+  color: inherit;
+  opacity: 0.85;
 }
 </style>

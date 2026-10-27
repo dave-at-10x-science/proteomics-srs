@@ -81,7 +81,7 @@ pub async fn options(State(state): State<AppState>) -> ApiResult<Json<Vec<GameOp
          FROM sets s
          JOIN set_notes sn ON sn.set_id = s.id
          JOIN notes n ON n.id = sn.note_id AND n.status = 'published'
-         WHERE EXISTS (SELECT 1 FROM card_state cs WHERE cs.user_id = ?1 AND cs.note_id = n.id)
+         WHERE EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
          GROUP BY s.id, n.note_type_id
          ORDER BY s.is_default DESC, s.name",
     )
@@ -129,9 +129,9 @@ pub struct Board {
 pub async fn board(State(state): State<AppState>, Query(q): Query<BoardQuery>) -> ApiResult<Json<Board>> {
     let want = q.pairs.unwrap_or(8).clamp(MIN_PAIRS, MAX_PAIRS);
     let introduced: HashSet<String> = sqlx::query_scalar(
-        "SELECT DISTINCT cs.note_id FROM card_state cs
-         JOIN set_notes sn ON sn.note_id = cs.note_id AND sn.set_id = ?2
-         WHERE cs.user_id = ?1",
+        "SELECT st.note_id FROM studied_notes st
+         JOIN set_notes sn ON sn.note_id = st.note_id AND sn.set_id = ?2
+         WHERE st.user_id = ?1",
     )
     .bind(LOCAL_USER)
     .bind(&q.set)
@@ -314,6 +314,8 @@ mod tests {
             pairs,
             [
                 ("structure", "name"),
+                ("structure", "three_letter"),
+                ("structure", "one_letter"),
                 ("one_letter", "name"),
                 ("three_letter", "name"),
                 ("structure", "side_chain_class"),
@@ -321,6 +323,6 @@ mod tests {
             ]
         );
         assert_eq!(p[0].label, "Structure ↔ Name");
-        assert_eq!(p[1].label, "One-letter code ↔ Name");
+        assert_eq!(p[3].label, "One-letter code ↔ Name");
     }
 }
