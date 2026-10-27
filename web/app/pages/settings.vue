@@ -27,10 +27,6 @@ async function save() {
 <template>
   <form v-if="form" class="card stack" @submit.prevent="save">
     <h1>Settings</h1>
-    <label>
-      New cards per day
-      <input v-model.number="form.new_per_day" type="number" min="0" max="200" />
-    </label>
     <label class="row">
       <input v-model="capReviews" type="checkbox" />
       Limit reviews per day

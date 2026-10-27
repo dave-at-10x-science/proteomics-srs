@@ -41,10 +41,16 @@ Add and edit cards in the app under **Library**: create sets, add notes with a l
 preview as you type SMILES, upload images for things SMILES can't draw, and mark notes as drafts
 to keep them out of review. Uploaded images are stored in `data/media/`.
 
-**Studying** happens in rounds. Pick a size (10 by default): due cards come first, then new cards
-fill the round. Each card is shown once per round; one you miss comes back in a later round.
-Typed and multiple-choice answers grade themselves: a wrong answer is recorded as Again, and a
-right one offers Hard / Good / Easy with Good focused, so Enter moves on.
+**Study, then review.** New material starts in **Study**: read through a batch of notes you
+haven't seen (5 by default) with every field shown. When you finish the batch, all of those
+notes' cards join your review rotation. Each card is scheduled on its own, so an amino acid's
+name, three-letter code and one-letter code come due independently.
+
+**Review** happens in rounds. Pick a size (10 by default); the round is drawn from the studied
+cards that are due, at random if more are due than fit. Each card is shown once per round, and one
+you miss comes back in a later round. Do as many rounds as you like; due cards never expire, they
+just wait. Typed and multiple-choice answers grade themselves: a wrong answer is recorded as
+Again, and a right one offers Hard / Good / Easy with Good focused, so Enter moves on.
 
 **Browse** (in the header) flips through a set like flash cards, with every field shown. It
 doesn't change your review schedule.
@@ -83,7 +89,9 @@ a fallback model instead of returning the refusal.
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/review/round` | `?size=` (default 10) what's available now, and a round of cards: due first, then new |
+| GET | `/api/study/batch` | `?size=` (default 5) the next notes not studied yet, and how many remain |
+| POST | `/api/study/studied` | `{note_ids}` mark notes studied, putting their cards into review |
+| GET | `/api/review/round` | `?size=` (default 10) counts of what's due, notes not studied yet, and a random round of due cards |
 | GET | `/api/review/card` | `?note_id=&template_id=` one card, with everything needed to render it |
 | GET | `/api/review/next` | Today's counts and the next card, with everything needed to render it |
 | POST | `/api/review/check` | Check a typed answer: `{note_id, template_id, input}` |
@@ -101,7 +109,7 @@ a fallback model instead of returning the refusal.
 | GET | `/api/game/options` | Sets you can play (with studied-note counts) and their pairings |
 | GET | `/api/game/board` | `?set=&a=&b=&pairs=` a shuffled board of studied notes |
 | POST | `/api/game/results` | Record a game; returns personal bests |
-| GET/PUT | `/api/settings` | New cards per day, review cap, target retention |
+| GET/PUT | `/api/settings` | Review cap, target retention |
 
 ## Development
 

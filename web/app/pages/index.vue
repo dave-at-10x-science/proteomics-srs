@@ -3,6 +3,7 @@ import type { Counts, SetSummary } from '~/types/api';
 
 const api = useApi();
 const counts = ref<Counts | null>(null);
+const unstudied = ref(0);
 const sets = ref<SetSummary[]>([]);
 const error = ref('');
 
@@ -11,6 +12,7 @@ async function load() {
     let round;
     [round, sets.value] = await Promise.all([api.round(1), api.sets()]);
     counts.value = round.counts;
+    unstudied.value = round.unstudied;
     error.value = '';
   } catch {
     error.value = 'Could not reach the server. Is srs-server running?';
@@ -37,15 +39,17 @@ onMounted(load);
     <section v-if="counts" class="card today">
       <h1>Today</h1>
       <div class="counts">
-        <div><strong>{{ counts.review }}</strong><span>to review</span></div>
-        <div><strong>{{ counts.new }}</strong><span>new</span></div>
-        <div><strong>{{ counts.learning }}</strong><span>learning</span></div>
+        <div><strong>{{ total }}</strong><span>due for review</span></div>
+        <div><strong>{{ unstudied }}</strong><span>not studied yet</span></div>
       </div>
       <div class="actions">
         <NuxtLink v-if="total > 0" to="/review">
-          <button class="primary start">Start a round</button>
+          <button class="primary start">Start a review round</button>
         </NuxtLink>
-        <p v-else class="muted done">All done for today. Come back tomorrow.</p>
+        <p v-else class="muted done">Nothing due for review right now.</p>
+        <NuxtLink v-if="unstudied > 0" to="/study">
+          <button class="start" :class="{ primary: total === 0 }">Study new notes</button>
+        </NuxtLink>
         <NuxtLink to="/browse"><button class="start">Browse cards</button></NuxtLink>
       </div>
     </section>
@@ -75,7 +79,7 @@ h2 {
 }
 .counts {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   text-align: center;
   margin-bottom: 1rem;
 }

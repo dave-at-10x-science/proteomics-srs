@@ -1,7 +1,7 @@
 //! Database access. Queries are plain SQL with bound parameters, kept portable enough to move
 //! to Postgres later.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -118,6 +118,54 @@ pub async fn set_notes(pool: &SqlitePool, set_id: &str) -> ApiResult<Vec<StoredN
     rows.iter().map(note_from_row).collect()
 }
 
+/// Published notes in the user's subscribed sets that haven't been studied yet, in set order.
+pub async fn unstudied_notes(pool: &SqlitePool, user: i64) -> ApiResult<Vec<StoredNote>> {
+    let rows = sqlx::query(
+        "SELECT n.id, n.note_type_id, n.fields, n.status
+         FROM notes n
+         JOIN set_notes sn ON sn.note_id = n.id
+         JOIN subscriptions s ON s.set_id = sn.set_id AND s.user_id = ?1
+         WHERE n.status = 'published'
+           AND NOT EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
+         GROUP BY n.id
+         ORDER BY MIN(sn.set_id), MIN(sn.position)",
+    )
+    .bind(user)
+    .fetch_all(pool)
+    .await?;
+    rows.iter().map(note_from_row).collect()
+}
+
+pub async fn mark_studied(
+    pool: &SqlitePool,
+    user: i64,
+    note_ids: &[String],
+    now: DateTime<Utc>,
+) -> ApiResult<usize> {
+    let mut tx = pool.begin().await?;
+    let mut added = 0;
+    for id in note_ids {
+        let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM notes WHERE id = ?")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+        if exists == 0 {
+            return Err(ApiError::NotFound(format!("note `{id}`")));
+        }
+        added += sqlx::query(
+            "INSERT INTO studied_notes (user_id, note_id, studied_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+        )
+        .bind(user)
+        .bind(id)
+        .bind(now)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected() as usize;
+    }
+    tx.commit().await?;
+    Ok(added)
+}
+
 /// The first set (by id) containing the note.
 pub async fn set_of_note(pool: &SqlitePool, note_id: &str) -> ApiResult<Option<String>> {
     Ok(
@@ -188,7 +236,9 @@ pub async fn add_to_set(db: &mut sqlx::SqliteConnection, set_id: &str, note_id: 
 pub async fn candidates(pool: &SqlitePool, user: i64, now: DateTime<Utc>) -> ApiResult<Vec<Candidate>> {
     let rows = sqlx::query(
         "SELECT c.note_id, c.template_id, MIN(sn.set_id) AS set_id,
-                cs.phase, cs.stability, cs.difficulty, cs.due, cs.last_review, cs.reps, cs.lapses
+                cs.phase, cs.stability, cs.difficulty, cs.due, cs.last_review, cs.reps, cs.lapses,
+                EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = c.note_id)
+                    AS studied
          FROM cards c
          JOIN notes n ON n.id = c.note_id AND n.status = 'published'
          JOIN set_notes sn ON sn.note_id = c.note_id
@@ -208,6 +258,7 @@ pub async fn candidates(pool: &SqlitePool, user: i64, now: DateTime<Utc>) -> Api
             id: CardId::new(r.get::<String, _>("note_id"), r.get::<String, _>("template_id")),
             set_id: r.get("set_id"),
             state: state_from_row(r).unwrap_or_else(|| CardState::new(now)),
+            studied: r.get("studied"),
         })
         .collect())
 }
@@ -327,26 +378,16 @@ pub async fn today(
     day_start: DateTime<Utc>,
     day_end: DateTime<Utc>,
 ) -> ApiResult<Today> {
-    let rows =
-        sqlx::query("SELECT note_id, phase_before FROM review_log WHERE user_id = ? AND reviewed_at >= ?")
-            .bind(user)
-            .bind(day_start)
-            .fetch_all(pool)
-            .await?;
-    let mut today = Today {
+    let reviews_done: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM review_log WHERE user_id = ? AND reviewed_at >= ? AND phase_before = 'review'",
+    )
+    .bind(user)
+    .bind(day_start)
+    .fetch_one(pool)
+    .await?;
+    Ok(Today {
         now,
         day_end,
-        new_introduced: 0,
-        reviews_done: 0,
-        notes_seen: HashSet::new(),
-    };
-    for r in rows {
-        match r.get::<String, _>("phase_before").as_str() {
-            "new" => today.new_introduced += 1,
-            "review" => today.reviews_done += 1,
-            _ => {}
-        }
-        today.notes_seen.insert(r.get("note_id"));
-    }
-    Ok(today)
+        reviews_done: reviews_done as usize,
+    })
 }

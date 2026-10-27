@@ -77,6 +77,20 @@ impl TestApp {
         self.call("POST", uri, Some(body)).await
     }
 
+    /// Study the next `n` notes, putting their cards into rotation. Returns their ids.
+    async fn study(&self, n: usize) -> Vec<String> {
+        let batch = self.get(&format!("/api/study/batch?size={n}")).await;
+        let ids: Vec<String> = batch["notes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["id"].as_str().unwrap().to_string())
+            .collect();
+        let (status, v) = self.post("/api/study/studied", json!({ "note_ids": ids })).await;
+        assert_eq!(status, StatusCode::OK, "{v}");
+        ids
+    }
+
     async fn rate(&self, card: &Value, rating: &str) -> Value {
         let (status, v) = self
             .post(
@@ -129,57 +143,86 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
 }
 
 #[tokio::test]
-async fn daily_session_introduces_ten_new_cards_one_per_amino_acid() {
+async fn cards_enter_review_only_once_their_note_is_studied() {
     let t = TestApp::new().await;
-    let next = t.get("/api/review/next").await;
-    assert_eq!(next["counts"], json!({ "learning": 0, "review": 0, "new": 10 }));
+    let round = t.get("/api/review/round").await;
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 0 }));
+    assert_eq!(round["unstudied"], 20);
+    assert!(t.get("/api/review/next").await["card"].is_null());
 
-    let mut card = next["card"].clone();
-    let mut seen = Vec::new();
-    while !card.is_null() {
-        assert_eq!(card["phase"], "new");
-        seen.push(card["note_id"].as_str().unwrap().to_string());
-        card = t.rate(&card, "good").await["next"]["card"].clone();
-    }
-    assert_eq!(seen.len(), 10);
-    seen.sort();
-    seen.dedup();
+    let batch = t.get("/api/study/batch?size=2").await;
+    assert_eq!(batch["remaining"], 20);
+    let ids: Vec<&str> = batch["notes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["aa-gly", "aa-ala"]);
+    assert!(batch["notes"][0]["smiles"].is_string());
+
+    let (_, v) = t.post("/api/study/studied", json!({ "note_ids": ids })).await;
+    assert_eq!(v["added"], 2);
+    let (_, v) = t
+        .post("/api/study/studied", json!({ "note_ids": ["aa-gly"] }))
+        .await;
+    assert_eq!(v["added"], 0, "studying twice changes nothing");
+    let (status, _) = t
+        .post("/api/study/studied", json!({ "note_ids": ["nope"] }))
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // Every enabled card of both notes is now due: 2 notes x 7 cards, all answer types at once.
+    let round = t.get("/api/review/round?size=50").await;
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 14 }));
+    assert_eq!(round["unstudied"], 18);
+    let cards = round["cards"].as_array().unwrap();
+    assert_eq!(cards.len(), 14);
+    assert!(
+        cards
+            .iter()
+            .any(|c| c["note_id"] == "aa-gly" && c["template_id"] == "structure-to-one-letter")
+    );
+    assert!(
+        cards
+            .iter()
+            .all(|c| c["note_id"] == "aa-gly" || c["note_id"] == "aa-ala")
+    );
+    // A smaller round is a pick of those.
     assert_eq!(
-        seen.len(),
-        10,
-        "siblings should be buried: one card per amino acid per day"
+        t.get("/api/review/round?size=5").await["cards"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
     );
 
-    // "Good" on a new card schedules it about two days out. Then those ten are due for review,
-    // plus ten more new ones.
-    t.advance(Duration::days(1));
-    assert_eq!(t.get("/api/review/next").await["counts"]["review"], 0);
-    t.advance(Duration::days(2));
-    let next = t.get("/api/review/next").await;
-    assert_eq!(next["counts"]["review"], 10);
-    assert_eq!(next["counts"]["new"], 10);
+    assert_eq!(t.get("/api/study/batch?size=1").await["notes"][0]["id"], "aa-ser");
 }
 
 #[tokio::test]
 async fn again_brings_the_card_back_in_the_same_session() {
     let t = TestApp::new().await;
+    t.study(1).await;
     let card = t.get("/api/review/next").await["card"].clone();
     let res = t.rate(&card, "again").await;
     assert_eq!(res["state"]["phase"], "learning");
 
     // Work through the rest of the new cards.
     let mut next = res["next"]["card"].clone();
-    while !next.is_null() && next["note_id"] != card["note_id"] {
+    let same = |a: &Value, b: &Value| a["note_id"] == b["note_id"] && a["template_id"] == b["template_id"];
+    while !next.is_null() && !same(&next, &card) {
         next = t.rate(&next, "good").await["next"]["card"].clone();
     }
     // The failed card is offered again (learn-ahead) before the session ends.
-    assert_eq!(next["note_id"], card["note_id"]);
+    assert!(same(&next, &card), "{next}");
     assert_eq!(next["phase"], "learning");
 }
 
 #[tokio::test]
 async fn cards_include_what_the_app_needs_to_render_them() {
     let t = TestApp::new().await;
+    t.study(1).await;
     let card = t.get("/api/review/next").await["card"].clone();
     assert_eq!(card["template_id"], "structure-to-name");
     assert!(card["fields"]["smiles"].is_string());
@@ -192,7 +235,7 @@ async fn cards_include_what_the_app_needs_to_render_them() {
 #[tokio::test]
 async fn multiple_choice_has_four_distinct_options_including_the_answer() {
     let t = TestApp::new().await;
-    // Introduce a card, then come back the next day when the sibling templates are available.
+    t.study(1).await;
     let mut card = t.get("/api/review/next").await["card"].clone();
     for _ in 0..30 {
         if card["template"]["mode"] == "multiple_choice" {
@@ -316,7 +359,6 @@ async fn settings_are_validated() {
         )
         .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(t.get("/api/review/next").await["counts"]["new"], 5);
 }
 
 #[tokio::test]
@@ -391,12 +433,11 @@ async fn memory_game_uses_only_introduced_notes_and_never_touches_the_schedule()
         .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
 
-    // Study today's ten new cards.
-    let mut card = t.get("/api/review/next").await["card"].clone();
-    let mut studied = std::collections::HashSet::new();
-    while !card.is_null() {
-        studied.insert(card["note_id"].as_str().unwrap().to_string());
-        card = t.rate(&card, "good").await["next"]["card"].clone();
+    // Study ten notes and review a few of their cards.
+    let studied: std::collections::HashSet<String> = t.study(10).await.into_iter().collect();
+    for _ in 0..10 {
+        let card = t.get("/api/review/next").await["card"].clone();
+        t.rate(&card, "good").await;
     }
     let schedule_before: Vec<(String, String)> =
         sqlx::query_as("SELECT note_id || '/' || template_id, due FROM card_state ORDER BY 1")
@@ -567,6 +608,9 @@ async fn drafted_notes_wait_as_drafts_until_published() {
             .await
             .unwrap();
     assert_eq!(draft_cards, 0);
+    let studied = t.study(100).await;
+    assert!(studied.iter().any(|id| id.starts_with("term-")));
+    assert!(!studied.iter().any(|id| id == "term-ion-mobility"));
     let mut seen_ids = Vec::new();
     for _ in 0..40 {
         let next = t.get("/api/review/next").await;
@@ -630,8 +674,9 @@ async fn client_routes_are_served_the_app_shell() {
 #[tokio::test]
 async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
     let t = TestApp::new().await;
+    t.study(2).await;
     let round = t.get("/api/review/round?size=4").await;
-    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 10 }));
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 14 }));
     let cards = round["cards"].as_array().unwrap().clone();
     assert_eq!(cards.len(), 4);
 
@@ -647,11 +692,12 @@ async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
         t.rate(&card, if i == 0 { "again" } else { "good" }).await;
     }
 
-    // The next round picks up the failed card (learn-ahead) plus the remaining new cards.
-    let round = t.get("/api/review/round").await;
-    assert_eq!(round["counts"], json!({ "learning": 1, "review": 0, "new": 6 }));
-    assert_eq!(round["cards"][0], cards[0]);
-    assert_eq!(round["cards"].as_array().unwrap().len(), 7);
+    // The next round can pick up the failed card (learn-ahead) and the rest still unreviewed.
+    let round = t.get("/api/review/round?size=50").await;
+    assert_eq!(round["counts"], json!({ "learning": 1, "review": 0, "new": 10 }));
+    let next = round["cards"].as_array().unwrap();
+    assert_eq!(next.len(), 11);
+    assert!(next.contains(&cards[0]));
 
     let (status, _) = t.call("GET", "/api/review/round?size=0", None).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);

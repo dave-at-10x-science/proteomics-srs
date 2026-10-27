@@ -39,15 +39,20 @@ function saveRound() {
   }
 }
 
-const dueCount = computed(() => (available.value ? available.value.learning + available.value.review : 0));
-const availableTotal = computed(() => dueCount.value + (available.value?.new ?? 0));
-const roundSize = computed(() => Math.min(size.value, availableTotal.value));
+const unstudied = ref(0);
+const dueCount = computed(() => {
+  const c = available.value;
+  return c ? c.learning + c.review + c.new : 0;
+});
+const roundSize = computed(() => Math.min(size.value, dueCount.value));
 
 async function loadSetup() {
   phase.value = 'setup';
   card.value = null;
   try {
-    available.value = (await api.round(1)).counts;
+    const res = await api.round(1);
+    available.value = res.counts;
+    unstudied.value = res.unstudied;
     error.value = '';
   } catch {
     error.value = 'Could not reach the server.';
@@ -233,10 +238,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <h2>New round</h2>
       <template v-if="available">
         <p class="muted">
-          <strong>{{ dueCount }}</strong> due and <strong>{{ available.new }}</strong> new
-          {{ available.new === 1 ? 'card' : 'cards' }} available.
+          <strong>{{ dueCount }}</strong> {{ dueCount === 1 ? 'card' : 'cards' }} due.
         </p>
-        <template v-if="availableTotal > 0">
+        <template v-if="dueCount > 0">
           <div class="sizes" role="radiogroup" aria-label="Cards in this round">
             <button
               v-for="s in SIZES"
@@ -252,10 +256,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <button class="primary wide" :disabled="busy" @click="start">
             Start round of {{ roundSize }} {{ roundSize === 1 ? 'card' : 'cards' }}
           </button>
-          <p class="muted small">Due cards come first, then new ones fill the round.</p>
+          <p class="muted small">If more are due than fit, the round is a random pick of them.</p>
         </template>
         <template v-else>
-          <p>Nothing else is due. Nice work.</p>
+          <p>Nothing is due right now.</p>
+          <NuxtLink v-if="unstudied" to="/study">
+            <button class="primary wide">Study new notes ({{ unstudied }} left)</button>
+          </NuxtLink>
           <NuxtLink to="/browse"><button class="wide">Browse cards</button></NuxtLink>
         </template>
       </template>

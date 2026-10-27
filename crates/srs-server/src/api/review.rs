@@ -1,14 +1,16 @@
 //! The review loop: get the next card, optionally check a typed answer, submit a rating.
 //!
-//! The app studies in rounds: it asks for a round of a chosen size up front, then fetches and
-//! answers each card in turn. A card is shown at most once per round, even if a rating makes it
-//! due again before the round ends.
+//! Cards enter review once their note has been studied (see `study`). The app reviews in rounds:
+//! it asks for a round of a chosen size up front, then fetches and answers each card in turn. A
+//! card is shown at most once per round, even if a rating makes it due again before the round
+//! ends.
 
 use std::collections::BTreeMap;
 
 use axum::Json;
 use axum::extract::{Query, State};
 use chrono::Duration;
+use rand::RngExt;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use srs_core::model::{AnswerMode, CardId, CardTemplate, NoteType};
@@ -75,12 +77,14 @@ pub struct RoundResponse {
     pub counts: Counts,
     /// The round, in presentation order.
     pub cards: Vec<CardId>,
+    /// Notes in subscribed sets not studied yet, whose cards aren't in rotation.
+    pub unstudied: usize,
 }
 
 const DEFAULT_ROUND: usize = 10;
 const MAX_ROUND: usize = 200;
 
-/// Pick a round of cards: due cards first, then new cards up to the size.
+/// Pick a round of cards from everything due, at random if more are due than fit.
 pub async fn round(
     State(state): State<AppState>,
     Query(q): Query<RoundQuery>,
@@ -95,6 +99,7 @@ pub async fn round(
     let (day_start, day_end) = state.study_day(now);
     let settings = store::settings(&state.pool, LOCAL_USER).await?;
     let candidates = store::candidates(&state.pool, LOCAL_USER, now).await?;
+    let unstudied = store::unstudied_notes(&state.pool, LOCAL_USER).await?.len();
     // Learning cards due shortly count as due, so a round started right after another still
     // picks up the cards just failed.
     let today = Today {
@@ -102,7 +107,6 @@ pub async fn round(
         ..store::today(&state.pool, LOCAL_USER, now, day_start, day_end).await?
     };
     let options = QueueOptions {
-        new_per_day: settings.new_per_day as usize,
         reviews_per_day: settings.reviews_per_day.map(|v| v as usize),
     };
     let queue = build_queue(&candidates, &options, &today);
@@ -112,7 +116,10 @@ pub async fn round(
             review: queue.review.len(),
             new: queue.new.len(),
         },
-        cards: build_round(&candidates, &options, &today, size),
+        cards: build_round(&candidates, &options, &today, size, |n| {
+            rand::rng().random_range(0..n)
+        }),
+        unstudied,
     }))
 }
 
@@ -146,7 +153,6 @@ async fn next_card(state: &AppState) -> ApiResult<NextResponse> {
     let candidates = store::candidates(&state.pool, LOCAL_USER, now).await?;
     let today = store::today(&state.pool, LOCAL_USER, now, day_start, day_end).await?;
     let options = QueueOptions {
-        new_per_day: settings.new_per_day as usize,
         reviews_per_day: settings.reviews_per_day.map(|v| v as usize),
     };
     let queue = build_queue(&candidates, &options, &today);
