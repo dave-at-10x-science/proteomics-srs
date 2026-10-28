@@ -11,7 +11,8 @@ matching-pairs memory game for practice. Structures are drawn from SMILES. See
 crates/srs-core/   Scheduling (FSRS), daily queue, content model, answer checking. No I/O; builds for WASM.
 crates/srs-server/ Local server: JSON API + serves the web app. SQLite in data/.
 web/               Nuxt SPA, installable as a PWA. Structures drawn from SMILES with RDKit.js.
-seed/              Starter sets as YAML: the 20 amino acids (default) and MS/proteomics vocabulary.
+seed/              Starter sets as YAML: the 20 amino acids (default), MS/proteomics vocabulary,
+                   PTMs, monosaccharides, and N-/O-glycosylation.
 tools/             Content helpers (SMILES validation and structure previews).
 docs/              Design notes.
 ```

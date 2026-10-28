@@ -50,6 +50,7 @@ const html = computed(() => (props.def.type === 'markdown' ? (marked.parse(Strin
   text-align: center;
 }
 .unit {
+  white-space: nowrap;
   margin-left: 0.25em;
   color: var(--muted);
   font-size: 0.85em;

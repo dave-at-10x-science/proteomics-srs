@@ -30,7 +30,7 @@ impl TestApp {
     async fn build(claude: Option<Claude>) -> Self {
         let pool = open_db("sqlite::memory:").await.unwrap();
         let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
-        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 2);
+        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 5);
         let now = Arc::new(Mutex::new(Utc.with_ymd_and_hms(2026, 10, 23, 12, 0, 0).unwrap()));
         let clock_now = now.clone();
         let media_dir = std::env::temp_dir().join(format!("srs-media-{}", std::process::id()));
@@ -134,10 +134,11 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
-    // 20 amino acids x 8 templates, 24 terms x 2 templates.
-    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 44);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 208);
-    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 44);
+    // 20 amino acids x 8 templates, 24 terms x 2, 14 PTMs x 5, 9 monosaccharides x 5,
+    // 22 glycan concepts x 2.
+    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 89);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 367);
+    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 89);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
 }
@@ -738,4 +739,28 @@ async fn reset_starts_over_as_if_for_the_first_time() {
     let sets = t.get("/api/sets").await;
     assert_eq!(sets[0]["subscribed"], true);
     assert_eq!(sets[0]["note_count"], 20);
+}
+
+#[tokio::test]
+async fn distractors_never_share_the_prompt() {
+    let t = TestApp::new().await;
+    let (status, _) = t
+        .call(
+            "PUT",
+            "/api/sets/ptms/subscription",
+            Some(json!({ "subscribed": true })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    // Deamidation and citrullination have the same mass shift, so asking for the name from the
+    // mass must never offer the other one.
+    for _ in 0..20 {
+        let card = t
+            .get("/api/review/card?note_id=ptm-deamidation&template_id=mass-shift-to-name")
+            .await;
+        let choices = card["choices"].as_array().unwrap();
+        assert_eq!(choices.len(), 4);
+        assert!(choices.contains(&json!("Deamidation")));
+        assert!(!choices.contains(&json!("Citrullination")), "{choices:?}");
+    }
 }

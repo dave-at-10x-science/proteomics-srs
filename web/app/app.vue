@@ -37,7 +37,9 @@ header {
 }
 nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem 1rem;
 }
 nav a {
   color: var(--muted);

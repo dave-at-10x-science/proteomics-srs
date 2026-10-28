@@ -1,0 +1,125 @@
+# The monosaccharides that make up most mammalian N- and O-glycans, with what a glycomics or
+# glycoproteomics search needs: composition shorthand, SNFG symbol, and monoisotopic residue mass
+# (as found in a glycan chain, i.e. free sugar minus H2O).
+# Symbols follow the Symbol Nomenclature for Glycans (SNFG).
+
+set:
+  id: monosaccharides
+  name: Monosaccharides for glycan analysis
+  default: false
+  tags: [glycans, glycomics, mass-spectrometry]
+
+note_type:
+  id: Monosaccharide
+  fields:
+    - {name: name, type: text}
+    - {name: abbreviation, type: text}
+    - {name: shorthand, label: Composition shorthand, type: text}
+    - {name: symbol, label: SNFG symbol, type: text}
+    - {name: residue_mass, label: Residue mass (monoisotopic), type: number, unit: Da}
+    - {name: formula, label: Residue formula, type: text}
+    - {name: note, label: Note, type: markdown, optional: true}
+  templates:
+    - id: name-to-abbreviation
+      prompt: [name]
+      answer: [abbreviation]
+      mode: typed
+    - id: name-to-symbol
+      prompt: [name]
+      answer: [symbol]
+      mode: multiple_choice
+    - id: symbol-to-name
+      prompt: [symbol]
+      answer: [name]
+      mode: multiple_choice
+    - id: name-to-shorthand
+      prompt: [name]
+      answer: [shorthand]
+      mode: multiple_choice
+    - id: name-to-residue-mass
+      prompt: [name]
+      answer: [residue_mass]
+      mode: typed
+      tolerance: 0.01
+
+notes:
+  - id: mono-glc
+    name: Glucose
+    abbreviation: Glc
+    shorthand: Hex
+    symbol: Blue circle
+    residue_mass: 162.05282
+    formula: C6H10O5
+    note: "Glucose, mannose and galactose are isomers: all three are \"Hex\" to the mass spectrometer. Glucose is part of the N-glycan precursor in the ER and is trimmed off before the glycoprotein leaves."
+
+  - id: mono-man
+    name: Mannose
+    abbreviation: Man
+    shorthand: Hex
+    symbol: Green circle
+    residue_mass: 162.05282
+    formula: C6H10O5
+    note: "Three mannoses form the shared N-glycan core; high-mannose glycans carry 5 to 9."
+
+  - id: mono-gal
+    name: Galactose
+    abbreviation: Gal
+    shorthand: Hex
+    symbol: Yellow circle
+    residue_mass: 162.05282
+    formula: C6H10O5
+    note: "Extends the antennae of complex N-glycans and forms O-glycan core 1 (Galβ1-3GalNAc)."
+
+  - id: mono-glcnac
+    name: N-Acetylglucosamine
+    abbreviation: GlcNAc
+    shorthand: HexNAc
+    symbol: Blue square
+    residue_mass: 203.07937
+    formula: C8H13NO5
+    note: "Two GlcNAcs anchor every N-glycan to asparagine. A single GlcNAc on Ser/Thr is O-GlcNAc."
+
+  - id: mono-galnac
+    name: N-Acetylgalactosamine
+    abbreviation: GalNAc
+    shorthand: HexNAc
+    symbol: Yellow square
+    residue_mass: 203.07937
+    formula: C8H13NO5
+    note: "The first sugar of mucin-type O-glycans, attached to Ser or Thr. Same mass as GlcNAc."
+
+  - id: mono-fuc
+    name: Fucose
+    abbreviation: Fuc
+    shorthand: dHex
+    symbol: Red triangle
+    residue_mass: 146.05791
+    formula: C6H10O4
+    note: "A deoxyhexose. Core fucose (α1-6 on the Asn-linked GlcNAc) is common on complex N-glycans; antenna fucose builds Lewis antigens."
+
+  - id: mono-neuac
+    name: N-Acetylneuraminic acid
+    abbreviation: NeuAc
+    shorthand: NeuAc
+    symbol: Purple diamond
+    residue_mass: 291.09542
+    formula: C11H17NO8
+    note: "The main human sialic acid, capping glycan antennae with a negative charge. Labile in the source and in CID; oxonium ions at m/z 292.103 and 274.092."
+
+  - id: mono-neugc
+    name: N-Glycolylneuraminic acid
+    abbreviation: NeuGc
+    shorthand: NeuGc
+    symbol: Light blue diamond
+    residue_mass: 307.09033
+    formula: C11H17NO9
+    note: "One oxygen heavier than NeuAc (+15.995 Da). Humans can't make it, so it flags non-human (e.g. mouse or hamster cell) glycosylation in biotherapeutics."
+
+  - id: mono-xyl
+    name: Xylose
+    abbreviation: Xyl
+    shorthand: Pent
+    symbol: Orange star
+    residue_mass: 132.04226
+    formula: C5H8O4
+    note: "A pentose. Starts the linker of glycosaminoglycan chains on proteoglycans, and appears as β1-2 xylose on plant N-glycans."

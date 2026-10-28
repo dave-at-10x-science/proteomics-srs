@@ -235,10 +235,13 @@ async fn choices(
 ) -> ApiResult<Vec<String>> {
     let field = &template.answer[0];
     let correct = note.text(field).unwrap_or_default();
+    // A note with the same prompt would make its answer right too (deamidation and
+    // citrullination share a mass shift), so it can't be a distractor.
+    let same_prompt = |other: &Note| template.prompt.iter().all(|f| other.get(f) == note.get(f));
     let mut others: Vec<String> = store::set_notes(&state.pool, set_id)
         .await?
         .into_iter()
-        .filter(|n| n.status == "published")
+        .filter(|n| n.status == "published" && !same_prompt(&n.note))
         .filter_map(|n| n.note.text(field))
         .filter(|v| *v != correct)
         .collect();
