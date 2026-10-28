@@ -35,6 +35,12 @@ function span(f: FieldDef) {
   return longest > 20 ? 3 : longest > 13 ? 2 : 1;
 }
 
+// The widest span is the full row, so it can't add a column when the grid is two wide.
+function spanStyle(f: FieldDef) {
+  const n = span(f);
+  return n === 3 ? { gridColumn: '1 / -1' } : n === 2 ? { gridColumn: 'span 2' } : undefined;
+}
+
 const visuals = computed(() => shown.value.filter(isVisual));
 const short = computed(() => shown.value.filter(isShort));
 const long = computed(() => shown.value.filter((f) => !isVisual(f) && !isShort(f)));
@@ -53,7 +59,7 @@ const long = computed(() => shown.value.filter((f) => !isVisual(f) && !isShort(f
         :fields="fields"
         :note-type="noteType"
         :class="{ highlight: highlight?.includes(f.name) }"
-        :style="span(f) > 1 ? { gridColumn: `span ${span(f)}` } : undefined"
+        :style="spanStyle(f)"
         label
       />
     </div>
