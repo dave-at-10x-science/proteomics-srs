@@ -37,6 +37,7 @@ export function useApi() {
     subscribe: (id: string, subscribed: boolean) =>
       $fetch(`/api/sets/${encodeURIComponent(id)}/subscription`, { method: 'PUT', body: { subscribed } }),
     settings: () => $fetch<Settings>('/api/settings'),
+    resetProgress: () => $fetch<{ reviews_removed: number }>('/api/progress/reset', { method: 'POST' }),
     saveSettings: (s: Settings) => $fetch<Settings>('/api/settings', { method: 'PUT', body: s }),
     createSet: (name: string) => $fetch<SetSummary>('/api/sets', { method: 'POST', body: { name } }),
     setNotes: (id: string) => $fetch<StoredNote[]>(`/api/sets/${encodeURIComponent(id)}/notes`),

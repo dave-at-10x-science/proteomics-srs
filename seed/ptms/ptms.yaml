@@ -1,0 +1,187 @@
+# Common post-translational modifications (and sample-prep modifications) as seen by mass spectrometry.
+# Mass shifts are monoisotopic deltas (Da) added to the unmodified residue, as listed in Unimod.
+# Each note's SMILES is an example modified amino acid (free acid, L-form), drawn with the same
+# backbone orientation as the amino acid set. tools/render_structures.py checks that they parse.
+
+set:
+  id: ptms
+  name: Post-translational modifications
+  default: false
+  tags: [ptm, mass-spectrometry, proteomics]
+
+note_type:
+  id: PTM
+  fields:
+    - {name: name, type: text}
+    - {name: residues, label: Modified residues, type: text}
+    - {name: mass_shift, label: Mass shift (monoisotopic), type: number, unit: Da}
+    - {name: composition, label: Composition change, type: text}
+    - {name: example, label: Example residue, type: text}
+    - {name: structure, label: Example structure, type: image, from: smiles, depiction_template: amino-acid-backbone}
+    - {name: smiles, label: SMILES, type: smiles}
+    - {name: ms, label: In the mass spectrometer, type: markdown}
+    - {name: note, label: Note, type: markdown, optional: true}
+  depiction_templates:
+    amino-acid-backbone:
+      # Same core alignment as the amino acid set: H2N-CA-C(=O)OH left to right, side chain up.
+      smiles: "NCC(=O)O"
+      coords: [[-1.3, -0.75], [0.0, 0.0], [1.3, -0.75], [1.3, -2.25], [2.6, 0.0]]  # N, CA, C, =O, OH
+  templates:
+    - id: name-to-mass-shift
+      prompt: [name]
+      answer: [mass_shift]
+      mode: typed
+      tolerance: 0.01
+    - id: mass-shift-to-name
+      prompt: [mass_shift]
+      answer: [name]
+      mode: multiple_choice
+    - id: name-to-residues
+      prompt: [name]
+      answer: [residues]
+      mode: multiple_choice
+    - id: structure-to-name
+      prompt: [structure]
+      answer: [name]
+      mode: multiple_choice
+    - id: name-to-ms
+      prompt: [name]
+      answer: [ms]
+      mode: flip
+
+notes:
+  - id: ptm-phospho
+    name: Phosphorylation
+    residues: S, T, Y
+    mass_shift: 79.96633
+    composition: "+HPO3"
+    example: Phosphoserine (pS)
+    smiles: "C([C@@H](C(=O)O)N)OP(=O)(O)O"
+    ms: "pS and pT readily lose phosphoric acid (H3PO4, −97.977 Da) in CID/HCD, so spectra show a strong neutral-loss peak. pY keeps its phosphate and gives a diagnostic immonium ion at m/z 216.042. Phosphopeptides are usually enriched first (TiO2 or IMAC)."
+    note: "Added by kinases, removed by phosphatases: the main on/off switch of cell signalling."
+
+  - id: ptm-acetyl
+    name: Acetylation
+    residues: K, protein N-terminus
+    mass_shift: 42.01057
+    composition: "+C2H2O"
+    example: N6-acetyllysine (acK)
+    smiles: "C(CCNC(C)=O)C[C@@H](C(=O)O)N"
+    ms: "Acetyl-lysine gives immonium ions at m/z 143.118 and 126.091 (after ammonia loss). Trypsin does not cleave after acetylated K. Only 0.036 Da heavier than trimethylation, so telling them apart needs high resolution."
+    note: "Lysine acetylation neutralises the positive charge; histone acetylation opens chromatin."
+
+  - id: ptm-methyl
+    name: Methylation
+    residues: K, R
+    mass_shift: 14.01565
+    composition: "+CH2"
+    example: N6-methyllysine (meK)
+    smiles: "C(CCNC)C[C@@H](C(=O)O)N"
+    ms: "A +14.016 Da shift. Watch for artifacts: methyl esters on D, E and the C-terminus form when samples meet methanol under acidic conditions."
+
+  - id: ptm-dimethyl
+    name: Dimethylation
+    residues: K, R
+    mass_shift: 28.03130
+    composition: "+C2H4"
+    example: N6,N6-dimethyllysine
+    smiles: "C(CCN(C)C)C[C@@H](C(=O)O)N"
+    ms: "On arginine, the two forms have the same mass but different neutral losses: asymmetric dimethyl-Arg (ADMA) loses dimethylamine (45.058 Da), symmetric (SDMA) loses methylamine (31.042 Da)."
+
+  - id: ptm-trimethyl
+    name: Trimethylation
+    residues: K
+    mass_shift: 42.04695
+    composition: "+C3H6"
+    example: N6,N6,N6-trimethyllysine
+    smiles: "C(CC[N+](C)(C)C)C[C@@H](C(=O)O)N"
+    ms: "Nearly isobaric with acetylation (0.036 Da apart). Trimethyl-lysine loses trimethylamine (59.073 Da) on fragmentation, which acetyl-lysine does not; that and high resolution tell them apart."
+    note: "The quaternary ammonium keeps a permanent positive charge. H3K4me3 and H3K9me3 are classic histone marks."
+
+  - id: ptm-oxidation
+    name: Oxidation
+    residues: M
+    mass_shift: 15.99491
+    composition: "+O"
+    example: Methionine sulfoxide
+    smiles: "CS(=O)CC[C@@H](C(=O)O)N"
+    ms: "Usually an artifact of sample handling, so it is searched as a variable modification. Methionine sulfoxide loses methanesulfenic acid (CH3SOH, 63.998 Da) in CID."
+
+  - id: ptm-deamidation
+    name: Deamidation
+    residues: N, Q
+    mass_shift: 0.98402
+    composition: "−NH +O (−NH3 +H2O)"
+    example: Asparagine to aspartate
+    smiles: "C([C@@H](C(=O)O)N)C(=O)O"
+    ms: "+0.984 Da is close to the 13C isotope spacing (1.003 Da), so a misassigned monoisotopic peak can look like deamidation. N followed by G deamidates fastest. Asn gives Asp and isoAsp."
+    note: "Often introduced during sample prep (high pH, heat, long digests). Same mass shift as citrullination."
+
+  - id: ptm-carbamidomethyl
+    name: Carbamidomethylation
+    residues: C
+    mass_shift: 57.02146
+    composition: "+C2H3NO"
+    example: S-carbamidomethylcysteine
+    smiles: "C([C@@H](C(=O)O)N)SCC(N)=O"
+    ms: "Searched as a fixed modification on C after reduction and alkylation. Same elemental composition as a glycine residue (57.021 Da). Overalkylation can also hit K, H and peptide N-termini."
+    note: "Comes from iodoacetamide in sample prep, not biology: it caps cysteines so disulfides can't re-form."
+
+  - id: ptm-gg
+    name: Ubiquitination (GG remnant)
+    residues: K
+    mass_shift: 114.04293
+    composition: "+C4H6N2O2"
+    example: Lysine with a Gly-Gly remnant
+    smiles: "C(CCNC(=O)CNC(=O)CN)C[C@@H](C(=O)O)N"
+    ms: "Trypsin cuts ubiquitin after its Arg74, leaving its last two glycines on the target lysine. That lysine is then not cleaved (a missed cleavage). GG peptides are enriched with an anti-K-ε-GG antibody. Same composition as an Asn residue."
+    note: "NEDD8 and ISG15 leave the same GG remnant, so the mass alone doesn't prove ubiquitin."
+
+  - id: ptm-citrullination
+    name: Citrullination
+    residues: R
+    mass_shift: 0.98402
+    composition: "−NH +O"
+    example: Citrulline
+    smiles: "C(C[C@@H](C(=O)O)N)CNC(=O)N"
+    ms: "Same mass shift as deamidation, so the site matters. Citrulline loses isocyanic acid (HNCO, 43.006 Da) on fragmentation, a useful diagnostic. Trypsin does not cleave after citrulline."
+    note: "Made by peptidylarginine deiminases (PADs); linked to rheumatoid arthritis autoantibodies."
+
+  - id: ptm-pyroglu
+    name: Pyro-glu (from Gln)
+    residues: N-terminal Q
+    mass_shift: -17.02655
+    composition: "−NH3"
+    example: Pyroglutamic acid
+    smiles: "C1CC(=O)N[C@@H]1C(=O)O"
+    ms: "An N-terminal glutamine cyclises and loses ammonia, often spontaneously during sample prep. N-terminal Glu can cyclise too (−18.011 Da, loss of water)."
+    note: "The blocked N-terminus stops Edman sequencing."
+
+  - id: ptm-sulfo
+    name: Sulfation
+    residues: Y
+    mass_shift: 79.95682
+    composition: "+SO3"
+    example: Sulfotyrosine
+    smiles: "C1=CC(=CC=C1C[C@@H](C(=O)O)N)OS(=O)(=O)O"
+    ms: "Only 0.0095 Da lighter than phosphorylation. Sulfate falls off very easily in positive-mode CID, while phosphotyrosine is stable: a lost +80 on Y points to sulfation."
+
+  - id: ptm-succinyl
+    name: Succinylation
+    residues: K
+    mass_shift: 100.01604
+    composition: "+C4H4O3"
+    example: N6-succinyllysine
+    smiles: "C(CCNC(=O)CCC(=O)O)C[C@@H](C(=O)O)N"
+    ms: "A +100.016 Da shift on lysine, which then escapes trypsin cleavage."
+    note: "Flips lysine's charge from +1 to −1 at physiological pH, a bigger change than acetylation."
+
+  - id: ptm-nitro
+    name: Nitration
+    residues: Y
+    mass_shift: 44.98508
+    composition: "+NO2 −H"
+    example: 3-Nitrotyrosine
+    smiles: "C1=CC(=C(C=C1C[C@@H](C(=O)O)N)[N+](=O)[O-])O"
+    ms: "A +44.985 Da shift on tyrosine. Nitrotyrosine can partly reduce to aminotyrosine (−29.974 Da from nitro) in the source or during prep."
+    note: "A marker of oxidative and nitrosative stress (peroxynitrite)."

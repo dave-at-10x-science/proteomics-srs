@@ -28,6 +28,19 @@ const isVisual = (f: FieldDef) => f.type === 'image';
 const isShort = (f: FieldDef) =>
   (f.type === 'text' || f.type === 'number') && String(props.fields[f.name]).length <= LONG_TEXT;
 
+// A short field with a long word ("Carbamidomethylation") takes two or three columns, so it is
+// never broken mid-word on a phone.
+function span(f: FieldDef) {
+  const longest = Math.max(...String(props.fields[f.name]).split(/\s+/).map((w) => w.length));
+  return longest > 20 ? 3 : longest > 13 ? 2 : 1;
+}
+
+// The widest span is the full row, so it can't add a column when the grid is two wide.
+function spanStyle(f: FieldDef) {
+  const n = span(f);
+  return n === 3 ? { gridColumn: '1 / -1' } : n === 2 ? { gridColumn: 'span 2' } : undefined;
+}
+
 const visuals = computed(() => shown.value.filter(isVisual));
 const short = computed(() => shown.value.filter(isShort));
 const long = computed(() => shown.value.filter((f) => !isVisual(f) && !isShort(f)));
@@ -46,6 +59,7 @@ const long = computed(() => shown.value.filter((f) => !isVisual(f) && !isShort(f
         :fields="fields"
         :note-type="noteType"
         :class="{ highlight: highlight?.includes(f.name) }"
+        :style="spanStyle(f)"
         label
       />
     </div>
@@ -72,12 +86,20 @@ const long = computed(() => shown.value.filter((f) => !isVisual(f) && !isShort(f
 }
 .row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Columns share the width by content, so a long name gets more room than a one-letter code. */
+  grid-template-columns: repeat(3, minmax(min-content, auto));
+  grid-auto-flow: dense;
   gap: 0.5rem 0.75rem;
+}
+@media (max-width: 340px) {
+  .row {
+    grid-template-columns: repeat(2, minmax(min-content, auto));
+  }
 }
 .row :deep(.value) {
   font-size: 1.05rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 .highlight {
   border-left: 3px solid var(--accent);

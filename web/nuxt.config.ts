@@ -9,6 +9,8 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Proteomics SRS',
+      // Lets the browser hyphenate long words in narrow columns.
+      htmlAttrs: { lang: 'en' },
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'theme-color', content: '#1f5f8b' },

@@ -11,7 +11,8 @@ matching-pairs memory game for practice. Structures are drawn from SMILES. See
 crates/srs-core/   Scheduling (FSRS), daily queue, content model, answer checking. No I/O; builds for WASM.
 crates/srs-server/ Local server: JSON API + serves the web app. SQLite in data/.
 web/               Nuxt SPA, installable as a PWA. Structures drawn from SMILES with RDKit.js.
-seed/              Starter sets as YAML: the 20 amino acids (default) and MS/proteomics vocabulary.
+seed/              Starter sets as YAML: the 20 amino acids (default), MS/proteomics vocabulary,
+                   PTMs, monosaccharides, and N-/O-glycosylation.
 tools/             Content helpers (SMILES validation and structure previews).
 docs/              Design notes.
 ```
@@ -51,6 +52,9 @@ cards that are due, at random if more are due than fit. Each card is shown once 
 you miss comes back in a later round. Do as many rounds as you like; due cards never expire, they
 just wait. Typed and multiple-choice answers grade themselves: a wrong answer is recorded as
 Again, and a right one offers Hard / Good / Easy with Good focused, so Enter moves on.
+
+**Start over** from Settings to forget all progress (studied notes, schedules, review history,
+game results) and begin as if for the first time. Sets, notes and settings are kept.
 
 **Browse** (in the header) flips through a set like flash cards, with every field shown. It
 doesn't change your review schedule.
@@ -110,6 +114,7 @@ a fallback model instead of returning the refusal.
 | GET | `/api/game/board` | `?set=&a=&b=&pairs=` a shuffled board of studied notes |
 | POST | `/api/game/results` | Record a game; returns personal bests |
 | GET/PUT | `/api/settings` | Review cap, target retention |
+| POST | `/api/progress/reset` | Start over: clears schedules, review history, studied notes and game results |
 
 ## Development
 
