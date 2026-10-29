@@ -40,11 +40,8 @@ const text = computed(() => {
     :disabled="state !== 'hidden'"
     @click="$emit('flip')"
   >
-    <!-- The card back echoes the app icon: a hexagon with a dot. -->
-    <svg v-if="state === 'hidden'" viewBox="0 0 24 24" class="w-2/5 text-white/60" aria-hidden="true">
-      <path d="M12 2.5 20.2 7.25v9.5L12 21.5l-8.2-4.75v-9.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-      <circle cx="12" cy="12" r="2.6" class="fill-warning-400" />
-    </svg>
+    <!-- The card back is the 10x Science mark. -->
+    <BrandMark v-if="state === 'hidden'" class="w-1/2 text-white/55" accent-class="text-white" />
     <!-- Structures are rendered once and kept, so flipping back and forth doesn't redraw. -->
     <StructureView v-if="smiles" v-show="state !== 'hidden'" :smiles="smiles" :template="template" fit />
     <span

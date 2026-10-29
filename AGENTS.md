@@ -8,7 +8,8 @@ replaced), the code and README win.
 
 ## What this is
 
-A local, single-user spaced repetition app for proteomics and mass spectrometry. A Rust server
+Proteomic Pull-ups, a 10x Science app (the repo and crates keep the name `proteomics-srs`). It
+is a local, single-user spaced repetition app for proteomics and mass spectrometry. A Rust server
 (Axum + SQLite) serves a JSON API and a Nuxt SPA that is used mostly on a phone. Cards are
 scheduled with FSRS. New notes are read in **Study**, then their cards enter **Review** rounds.
 A memory game and Browse mode never touch the schedule. Optional AI drafting calls the Claude API.
@@ -104,6 +105,11 @@ The web app uses [Nuxt UI](https://ui.nuxt.com) v4 on Tailwind CSS v4. Don't inv
   `useOverlay()`) asks before anything destructive, `SegmentedPicker` picks a size, and
   `AppTabBar` is the main navigation. Confirmations like "Saved" are toasts (`useToast()`).
   Never use `window.confirm` or `alert`.
+- **Branding is 10x Science.** The primary color is the logo's purple. The header shows the full
+  logo (`public/10x-science-logo-light.svg` on light, `10x-science-logo.svg` on dark, swapped by
+  `UColorModeImage`), and `BrandMark` draws the mark for decoration. The app icons in `public/`
+  are made from the 10x Science icon: `apple-touch-icon.png` and `icon-maskable-512.png` are
+  square and opaque, because iOS and Android mask them and show transparency as black.
 - **Icons are `i-lucide-*` names written literally in `.vue` files.** They are bundled at build
   time and never fetched (`icon.provider: 'none'`), so a name built at runtime or kept in a
   `.ts` file won't render.

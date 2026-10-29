@@ -1,5 +1,6 @@
 # proteomics-srs
-Spaced repetition system for learning about proteomic and mass spectrometry
+**Proteomic Pull-ups** by 10x Science: spaced repetition for learning about proteomics and mass
+spectrometry.
 
 A daily study tool: a short queue of due cards on your phone, scheduled with FSRS, plus a
 matching-pairs memory game for practice. Structures are drawn from SMILES. See

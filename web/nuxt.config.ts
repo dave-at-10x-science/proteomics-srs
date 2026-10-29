@@ -24,15 +24,23 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'Proteomics SRS',
+      title: 'Proteomic Pull-ups',
       // Lets the browser hyphenate long words in narrow columns.
       htmlAttrs: { lang: 'en' },
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
-        { name: 'theme-color', content: '#1f5f8b' },
+        // The browser and status bars match the page background (gray-100 and gray-950).
+        { name: 'theme-color', content: '#f3f4f6', media: '(prefers-color-scheme: light)' },
+        { name: 'theme-color', content: '#030712', media: '(prefers-color-scheme: dark)' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        // The home screen label; the full name gets cut off there.
+        { name: 'apple-mobile-web-app-title', content: 'Pull-ups' },
       ],
-      link: [{ rel: 'apple-touch-icon', href: '/icon-192.png' }],
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/icon-192.png' },
+        // iOS draws its own rounded corners and shows transparency as black, so this one is square.
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      ],
     },
   },
   nitro: {
@@ -43,17 +51,18 @@ export default defineNuxtConfig({
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
-      name: 'Proteomics SRS',
-      short_name: 'SRS',
+      name: 'Proteomic Pull-ups',
+      short_name: 'Pull-ups',
       description: 'Daily spaced repetition for proteomics and mass spectrometry',
-      theme_color: '#1f5f8b',
-      background_color: '#f7f8fa',
+      theme_color: '#f3f4f6',
+      background_color: '#f3f4f6',
       display: 'standalone',
       start_url: '/',
       icons: [
         { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        // Full-bleed, with the mark inside the safe zone that Android's shaped masks keep.
+        { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     },
     workbox: {

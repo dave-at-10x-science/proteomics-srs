@@ -41,11 +41,8 @@ onMounted(load);
       v-if="counts"
       class="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary-600 to-primary-900 p-5 text-white shadow-lg shadow-primary-900/20"
     >
-      <!-- Decoration echoing the app icon. -->
-      <svg viewBox="0 0 24 24" class="pointer-events-none absolute -top-10 -right-14 size-48 text-white/8" aria-hidden="true">
-        <path d="M12 2.5 20.2 7.25v9.5L12 21.5l-8.2-4.75v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
-        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-      </svg>
+      <!-- Decoration: the 10x Science mark, faint and cropped. -->
+      <BrandMark class="pointer-events-none absolute -top-8 -right-12 size-48 text-white/10" accent-class="text-white/15" />
 
       <p class="text-sm font-medium tracking-wide text-white/75 uppercase">Today</p>
       <div class="mt-3 flex items-end gap-6">

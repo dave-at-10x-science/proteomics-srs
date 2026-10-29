@@ -1,4 +1,4 @@
-// Nuxt UI theme. Colors are semantic: primary is the brand blue (defined in assets/main.css), and the
+// Nuxt UI theme. Colors are semantic: primary is the brand purple (defined in assets/main.css), and the
 // review ratings use the status colors: Again = error, Hard = warning, Good = success, Easy = info.
 export default defineAppConfig({
   ui: {

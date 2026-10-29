@@ -3,25 +3,26 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
-/* Brand blue: 700 is the accent in light mode, 400 in dark mode. */
+/* 10x Science purple, the exact shades in the logo (600, 500 and 400). 600 is the accent in light
+   mode, 400 in dark mode. */
 @theme static {
-  --color-brand-50: #f0f8fe;
-  --color-brand-100: #dff0fe;
-  --color-brand-200: #c1e1fc;
-  --color-brand-300: #97cbf4;
-  --color-brand-400: #4a9bd1;
-  --color-brand-500: #3d87bc;
-  --color-brand-600: #2b72a3;
-  --color-brand-700: #1f5f8b;
-  --color-brand-800: #144c72;
-  --color-brand-900: #113d5a;
-  --color-brand-950: #0c283c;
+  --color-brand-50: #faf5ff;
+  --color-brand-100: #f3e8ff;
+  --color-brand-200: #e9d5ff;
+  --color-brand-300: #d8b4fe;
+  --color-brand-400: #c084fc;
+  --color-brand-500: #a855f7;
+  --color-brand-600: #9333ea;
+  --color-brand-700: #7e22ce;
+  --color-brand-800: #6b21a8;
+  --color-brand-900: #581c87;
+  --color-brand-950: #3b0764;
 }
 
 :root {
   --ui-radius: 0.5rem;
   /* Darker shades than the defaults, so colored text and outlines read well on white. */
-  --ui-primary: var(--ui-color-primary-700);
+  --ui-primary: var(--ui-color-primary-600);
   --ui-success: var(--ui-color-success-700);
   --ui-info: var(--ui-color-info-600);
   --ui-warning: var(--ui-color-warning-700);
