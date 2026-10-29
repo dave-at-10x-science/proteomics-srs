@@ -38,9 +38,8 @@ const badSmiles = computed(() =>
 );
 const canSave = computed(() => !props.saving && !missing.value.length && !badSmiles.value.length && !uploading.value);
 
-async function upload(f: FieldDef, e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
+async function upload(f: FieldDef, file: unknown) {
+  if (!(file instanceof File)) return;
   uploading.value = f.name;
   uploadError.value = '';
   try {
@@ -65,122 +64,75 @@ function submit() {
 </script>
 
 <template>
-  <form class="stack" @submit.prevent="submit">
-    <div v-for="f in editable" :key="f.name" class="field">
-      <label :for="`f-${f.name}`">
-        {{ fieldLabel(f) }}
-        <span v-if="f.optional" class="muted">(optional)</span>
-        <span v-if="f.unit" class="muted">({{ f.unit }})</span>
-      </label>
+  <form class="flex flex-col gap-5" @submit.prevent="submit">
+    <UFormField
+      v-for="f in editable"
+      :key="f.name"
+      :label="fieldLabel(f)"
+      :hint="f.optional ? 'Optional' : undefined"
+      :error="badSmiles.includes(f) ? `That SMILES doesn't parse.` : undefined"
+    >
+      <UTextarea v-if="f.type === 'markdown'" v-model="values[f.name]" :rows="3" autoresize class="w-full" />
 
-      <textarea
-        v-if="f.type === 'markdown'"
-        :id="`f-${f.name}`"
-        v-model="values[f.name]"
-        rows="3"
-      />
-      <template v-else-if="f.type === 'image'">
-        <img v-if="text(f.name)" :src="text(f.name)" alt="" class="preview-img" />
-        <input :id="`f-${f.name}`" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" @change="upload(f, $event)" />
-        <button v-if="values[f.name]" type="button" class="small" @click="values[f.name] = ''">Remove image</button>
-        <p v-if="uploading === f.name" class="muted">Uploading…</p>
-        <p v-if="uploadError" class="error">{{ uploadError }}</p>
-      </template>
-      <input
+      <div v-else-if="f.type === 'image'" class="flex flex-col gap-2">
+        <template v-if="text(f.name)">
+          <img :src="text(f.name)" alt="" class="max-h-60 max-w-full self-start rounded-lg ring ring-default" />
+          <UButton
+            label="Remove image"
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="soft"
+            size="md"
+            class="self-start"
+            @click="values[f.name] = ''"
+          />
+        </template>
+        <UFileUpload
+          v-else
+          :model-value="null"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+          icon="i-lucide-image-up"
+          :label="uploading === f.name ? 'Uploading…' : 'Choose an image'"
+          description="PNG, JPEG, WebP, GIF or SVG"
+          :preview="false"
+          :disabled="uploading === f.name"
+          class="min-h-32 w-full"
+          @update:model-value="upload(f, $event)"
+        />
+        <ErrorAlert :errors="uploadError" />
+      </div>
+
+      <UInput
         v-else
-        :id="`f-${f.name}`"
         v-model="values[f.name]"
         :type="f.type === 'number' ? 'number' : 'text'"
         :step="f.type === 'number' ? 'any' : undefined"
         :inputmode="f.type === 'number' ? 'decimal' : undefined"
         :autocapitalize="f.type === 'smiles' ? 'off' : undefined"
         :spellcheck="f.type === 'smiles' ? false : undefined"
-        :class="{ mono: f.type === 'smiles' }"
-      />
+        :ui="f.type === 'smiles' ? { base: 'font-mono' } : undefined"
+        class="w-full"
+      >
+        <template v-if="f.unit" #trailing>
+          <span class="text-sm text-muted">{{ f.unit }}</span>
+        </template>
+      </UInput>
 
       <!-- Live structure preview while typing SMILES. -->
-      <div v-if="f.type === 'smiles' && text(f.name)" class="preview">
-        <StructureView
-          :smiles="text(f.name)"
-          :template="templateFor(f)"
-          @valid="smilesValid[f.name] = $event"
-        />
-      </div>
-    </div>
+      <StructureView
+        v-if="f.type === 'smiles' && text(f.name)"
+        :smiles="text(f.name)"
+        :template="templateFor(f)"
+        class="mt-3"
+        @valid="smilesValid[f.name] = $event"
+      />
+    </UFormField>
 
-    <label class="row">
-      <input v-model="draft" type="checkbox" />
-      Draft (not studied until published)
-    </label>
+    <USwitch v-model="draft" label="Draft" description="Not studied until published." />
 
-    <ul v-if="errors?.length" class="error">
-      <li v-for="e in errors" :key="e">{{ e }}</li>
-    </ul>
-    <p v-if="missing.length" class="muted small">Needs: {{ missing.map((f) => fieldLabel(f)).join(', ') }}</p>
-    <p v-if="badSmiles.length" class="error small">That SMILES doesn't parse.</p>
+    <ErrorAlert :errors="errors ?? []" />
+    <p v-if="missing.length" class="text-sm text-muted">Needs: {{ missing.map((f) => fieldLabel(f)).join(', ') }}</p>
 
-    <button class="primary" :disabled="!canSave">{{ saving ? 'Saving…' : 'Save' }}</button>
+    <UButton type="submit" label="Save" icon="i-lucide-check" block :loading="saving" :disabled="!canSave" />
   </form>
 </template>
-
-<style scoped>
-.field {
-  display: grid;
-  gap: 0.35rem;
-}
-label {
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-label .muted {
-  font-weight: 400;
-}
-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: 1rem;
-  resize: vertical;
-}
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 1rem;
-}
-.preview {
-  margin-top: 0.25rem;
-}
-.preview-img {
-  max-width: 100%;
-  max-height: 240px;
-  border-radius: var(--radius);
-}
-.row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 400;
-}
-.row input {
-  width: 1.2rem;
-  height: 1.2rem;
-}
-.small {
-  font-size: 0.85rem;
-}
-button.small {
-  min-height: 36px;
-  padding: 0.3rem 0.75rem;
-  justify-self: start;
-}
-.error {
-  color: var(--again);
-}
-ul.error {
-  margin: 0;
-  padding-left: 1.2rem;
-}
-</style>

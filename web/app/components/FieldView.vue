@@ -7,7 +7,12 @@ const props = defineProps<{
   fields: Record<string, FieldValue>;
   noteType: NoteType;
   label?: boolean;
+  /** The big centered value of a review prompt. */
   large?: boolean;
+  /** A short value in a row of three, which may wrap and hyphenate. */
+  compact?: boolean;
+  /** Emphasise this field, e.g. the answer. */
+  highlight?: boolean;
 }>();
 
 const value = computed(() => props.fields[props.def.name]);
@@ -24,45 +29,34 @@ const html = computed(() => (props.def.type === 'markdown' ? (marked.parse(Strin
 </script>
 
 <template>
-  <div class="field" :class="{ large }">
-    <div v-if="label" class="label">{{ fieldLabel(def) }}</div>
+  <div :class="{ 'border-s-3 border-primary ps-2.5': highlight }">
+    <div v-if="label" class="mb-0.5 text-xs font-medium text-muted">{{ fieldLabel(def) }}</div>
     <StructureView v-if="structureSmiles" :smiles="structureSmiles" :template="template" />
-    <img v-else-if="def.type === 'image' && value" :src="String(value)" :alt="fieldLabel(def)" class="image" />
-    <div v-else-if="def.type === 'markdown'" class="markdown" v-html="html" />
-    <div v-else class="value">
-      {{ value }}<span v-if="def.unit" class="unit">{{ def.unit }}</span>
+    <img
+      v-else-if="def.type === 'image' && value"
+      :src="String(value)"
+      :alt="fieldLabel(def)"
+      class="mx-auto block max-h-80 max-w-full rounded-lg"
+    />
+    <!-- Markdown from notes: Tailwind's reset removes list and link styles, so they're restored here. -->
+    <div
+      v-else-if="def.type === 'markdown'"
+      class="text-pretty [&_a]:text-primary [&_a]:underline [&_code]:font-mono [&_code]:text-[0.9em] [&_ol]:list-decimal [&_ol]:ps-5 [&_p+p]:mt-2 [&_ul]:list-disc [&_ul]:ps-5"
+      :class="highlight ? 'text-highlighted' : 'text-default'"
+      v-html="html"
+    />
+    <div
+      v-else
+      :class="[
+        large
+          ? 'text-center text-4xl font-bold tracking-tight text-highlighted'
+          : compact
+            ? 'text-base wrap-break-word hyphens-auto'
+            : 'text-lg',
+        highlight ? 'font-bold text-highlighted' : large ? '' : 'text-default',
+      ]"
+    >
+      {{ value }}<span v-if="def.unit" class="ms-1 text-[0.8em] font-normal whitespace-nowrap text-muted">{{ def.unit }}</span>
     </div>
   </div>
 </template>
-
-<style scoped>
-.label {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 0.15rem;
-}
-.value {
-  font-size: 1.1rem;
-}
-.large .value {
-  font-size: 2rem;
-  font-weight: 600;
-  text-align: center;
-}
-.unit {
-  white-space: nowrap;
-  margin-left: 0.25em;
-  color: var(--muted);
-  font-size: 0.85em;
-}
-.image {
-  display: block;
-  max-width: 100%;
-  max-height: 320px;
-  margin: 0 auto;
-  border-radius: var(--radius);
-}
-.markdown :deep(p) {
-  margin: 0;
-}
-</style>

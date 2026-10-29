@@ -5,7 +5,23 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: false },
   css: ['~/assets/main.css'],
-  modules: ['@vite-pwa/nuxt'],
+  modules: ['@nuxt/ui', '@vite-pwa/nuxt'],
+  ui: {
+    // System fonts: nothing to download, and they match the phone.
+    fonts: false,
+    theme: {
+      // Large controls by default, so everything is comfortable to tap.
+      defaultVariants: { size: 'xl' },
+    },
+    // Only generate CSS for the components the app uses.
+    experimental: { componentDetection: true },
+  },
+  icon: {
+    // Icons are bundled at build time and never fetched, so the installed app works offline. The
+    // scan only finds literal `i-lucide-*` names in .vue files.
+    provider: 'none',
+    clientBundle: { scan: true },
+  },
   app: {
     head: {
       title: 'Proteomics SRS',

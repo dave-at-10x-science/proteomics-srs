@@ -33,101 +33,76 @@ onMounted(load);
 </script>
 
 <template>
-  <div class="stack">
-    <p v-if="error" class="card error">{{ error }}</p>
+  <div class="flex flex-col gap-4">
+    <ErrorAlert :errors="error" />
 
-    <section v-if="counts" class="card today">
-      <h1>Today</h1>
-      <div class="counts">
-        <div><strong>{{ total }}</strong><span>due for review</span></div>
-        <div><strong>{{ unstudied }}</strong><span>not studied yet</span></div>
+    <!-- Today: what's due and the next thing to do. -->
+    <section
+      v-if="counts"
+      class="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary-600 to-primary-900 p-5 text-white shadow-lg shadow-primary-900/20"
+    >
+      <!-- Decoration echoing the app icon. -->
+      <svg viewBox="0 0 24 24" class="pointer-events-none absolute -top-10 -right-14 size-48 text-white/8" aria-hidden="true">
+        <path d="M12 2.5 20.2 7.25v9.5L12 21.5l-8.2-4.75v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+      </svg>
+
+      <p class="text-sm font-medium tracking-wide text-white/75 uppercase">Today</p>
+      <div class="mt-3 flex items-end gap-6">
+        <div>
+          <div class="text-5xl leading-none font-bold tracking-tight tabular-nums">{{ total }}</div>
+          <div class="mt-1 text-sm text-white/80">due for review</div>
+        </div>
+        <div>
+          <div class="text-2xl leading-none font-semibold tabular-nums">{{ unstudied }}</div>
+          <div class="mt-1 text-sm text-white/80">not studied yet</div>
+        </div>
       </div>
-      <div class="actions">
-        <NuxtLink v-if="total > 0" to="/review">
-          <button class="primary start">Start a review round</button>
-        </NuxtLink>
-        <p v-else class="muted done">Nothing due for review right now.</p>
-        <NuxtLink v-if="unstudied > 0" to="/study">
-          <button class="start" :class="{ primary: total === 0 }">Study new notes</button>
-        </NuxtLink>
-        <NuxtLink to="/browse"><button class="start">Browse cards</button></NuxtLink>
+
+      <div class="mt-5 flex flex-col gap-2">
+        <UButton
+          v-if="total > 0"
+          to="/review"
+          icon="i-lucide-play"
+          label="Start a review round"
+          block
+          class="bg-white text-primary-800 hover:bg-primary-50 active:bg-primary-100"
+        />
+        <p v-else class="flex items-center gap-2 text-white/90">
+          <UIcon name="i-lucide-circle-check" class="size-5" /> Nothing due for review right now.
+        </p>
+        <UButton
+          v-if="unstudied > 0"
+          to="/study"
+          icon="i-lucide-book-open"
+          label="Study new notes"
+          block
+          :class="
+            total === 0
+              ? 'bg-white text-primary-800 hover:bg-primary-50 active:bg-primary-100'
+              : 'bg-white/12 text-white ring ring-white/25 ring-inset hover:bg-white/20 active:bg-white/25'
+          "
+        />
       </div>
     </section>
 
-    <section v-if="sets.length" class="card">
-      <h2>Sets</h2>
-      <ul class="sets">
+    <UCard v-if="sets.length" :ui="{ body: 'p-0 sm:p-0' }">
+      <template #header>
+        <h2 class="font-semibold text-highlighted">Your sets</h2>
+        <p class="text-sm text-muted">Switch on the sets you're studying.</p>
+      </template>
+      <ul class="divide-y divide-default">
         <li v-for="s in sets" :key="s.id">
-          <label>
-            <input type="checkbox" :checked="s.subscribed" @change="toggle(s)" />
-            <span>
-              <span class="set-name">{{ s.name }}</span>
-              <span class="muted small">{{ s.note_count }} notes · {{ s.card_count }} cards</span>
-            </span>
-          </label>
+          <USwitch
+            :model-value="s.subscribed"
+            :label="s.name"
+            :description="`${s.note_count} notes · ${s.card_count} cards`"
+            class="w-full px-4 py-3 sm:px-6"
+            :ui="{ root: 'flex-row-reverse justify-between gap-4', wrapper: 'ms-0', label: 'font-medium' }"
+            @update:model-value="toggle(s)"
+          />
         </li>
       </ul>
-    </section>
+    </UCard>
   </div>
 </template>
-
-<style scoped>
-h1,
-h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.1rem;
-}
-.counts {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  text-align: center;
-  margin-bottom: 1rem;
-}
-.counts strong {
-  display: block;
-  font-size: 2rem;
-}
-.counts span {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-.start {
-  width: 100%;
-}
-.actions {
-  display: grid;
-  gap: 0.5rem;
-}
-.done {
-  text-align: center;
-  margin: 0;
-}
-.error {
-  border-color: var(--again);
-}
-.sets {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.sets li + li {
-  border-top: 1px solid var(--border);
-}
-.sets label {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.6rem 0;
-  cursor: pointer;
-}
-.sets input {
-  width: 1.3rem;
-  height: 1.3rem;
-}
-.set-name {
-  display: block;
-}
-.small {
-  font-size: 0.85rem;
-}
-</style>

@@ -193,8 +193,8 @@ async function rate(rating: Rating) {
 }
 
 // A wrong answer is recorded as Again; Continue is focused so Enter moves on.
-const continueButton = ref<HTMLButtonElement | null>(null);
-watch(continueButton, (b) => b?.focus());
+const continueButton = useTemplateRef<{ $el: HTMLElement }>('continueButton');
+watch(continueButton, (b) => b?.$el.focus());
 
 function onKey(e: KeyboardEvent) {
   if (e.target instanceof HTMLInputElement) return;
@@ -229,68 +229,89 @@ onMounted(async () => {
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
+
 <template>
-  <div class="review">
-    <p v-if="error" class="card">{{ error }}</p>
+  <div class="flex flex-col gap-4">
+    <ErrorAlert :errors="error" />
 
     <!-- Choosing a round -->
-    <section v-if="phase === 'setup'" class="card stack setup">
-      <h2>New round</h2>
-      <template v-if="available">
-        <p class="muted">
-          <strong>{{ dueCount }}</strong> {{ dueCount === 1 ? 'card' : 'cards' }} due.
-        </p>
-        <template v-if="dueCount > 0">
-          <div class="sizes" role="radiogroup" aria-label="Cards in this round">
-            <button
-              v-for="s in SIZES"
-              :key="s"
-              role="radio"
-              :aria-checked="size === s"
-              :class="{ selected: size === s }"
-              @click="size = s"
-            >
-              {{ s }}
-            </button>
+    <template v-if="phase === 'setup'">
+      <UCard v-if="!available">
+        <p class="text-muted">Loading…</p>
+      </UCard>
+      <UCard v-else-if="dueCount > 0" :ui="{ body: 'flex flex-col gap-5' }">
+        <div class="flex items-center gap-3">
+          <span class="flex size-11 items-center justify-center rounded-xl bg-primary/12 text-primary">
+            <UIcon name="i-lucide-repeat" class="size-6" />
+          </span>
+          <div>
+            <h1 class="text-lg font-semibold text-highlighted">New round</h1>
+            <p class="text-sm text-muted">
+              <span class="font-semibold text-default tabular-nums">{{ dueCount }}</span>
+              {{ dueCount === 1 ? 'card' : 'cards' }} due
+            </p>
           </div>
-          <button class="primary wide" :disabled="busy" @click="start">
-            Start round of {{ roundSize }} {{ roundSize === 1 ? 'card' : 'cards' }}
-          </button>
-          <p class="muted small">If more are due than fit, the round is a random pick of them.</p>
-        </template>
-        <template v-else>
-          <p>Nothing is due right now.</p>
-          <NuxtLink v-if="unstudied" to="/study">
-            <button class="primary wide">Study new notes ({{ unstudied }} left)</button>
-          </NuxtLink>
-          <NuxtLink to="/browse"><button class="wide">Browse cards</button></NuxtLink>
-        </template>
-      </template>
-      <p v-else class="muted">Loading…</p>
-    </section>
+        </div>
+        <SegmentedPicker v-model="size" :items="SIZES" legend="Cards in this round" />
+        <div class="flex flex-col gap-2">
+          <UButton
+            :label="`Start round of ${roundSize} ${roundSize === 1 ? 'card' : 'cards'}`"
+            trailing-icon="i-lucide-arrow-right"
+            block
+            :loading="busy"
+            @click="start"
+          />
+          <p class="text-center text-xs text-muted">If more are due than fit, the round is a random pick of them.</p>
+        </div>
+      </UCard>
+      <UCard v-else>
+        <UEmpty
+          icon="i-lucide-circle-check"
+          title="Nothing is due right now"
+          description="You're all caught up. Study something new, or browse what you know."
+          variant="naked"
+          :actions="[
+            ...(unstudied
+              ? [{ label: `Study new notes (${unstudied} left)`, icon: 'i-lucide-book-open', to: '/study' }]
+              : []),
+            { label: 'Browse cards', icon: 'i-lucide-layers', to: '/browse', color: 'neutral', variant: 'outline' },
+          ]"
+        />
+      </UCard>
+    </template>
 
     <!-- Round finished -->
-    <section v-else-if="phase === 'finished' && round" class="card stack center">
-      <h2>Round done</h2>
-      <p>
-        <strong>{{ round.correct }}</strong> of {{ round.correct + round.missed }} right.
-        <template v-if="round.missed">The {{ round.missed }} you missed will come back in a later round.</template>
-      </p>
-      <div class="actions">
-        <button class="primary wide" @click="loadSetup">Another round</button>
-        <NuxtLink to="/"><button class="wide">Back home</button></NuxtLink>
+    <UCard v-else-if="phase === 'finished' && round" :ui="{ body: 'flex flex-col items-center gap-4 py-8 text-center' }">
+      <span
+        class="flex size-16 items-center justify-center rounded-full"
+        :class="round.missed ? 'bg-primary/12 text-primary' : 'bg-success/12 text-success'"
+      >
+        <UIcon :name="round.missed ? 'i-lucide-target' : 'i-lucide-trophy'" class="size-8" />
+      </span>
+      <div>
+        <h1 class="text-xl font-semibold text-highlighted">{{ round.missed ? 'Round done' : 'Perfect round' }}</h1>
+        <p class="mt-1 text-muted">
+          <span class="font-semibold text-default">{{ round.correct }}</span> of {{ round.correct + round.missed }} right.
+          <template v-if="round.missed">The {{ round.missed }} you missed will come back in a later round.</template>
+        </p>
       </div>
-    </section>
+      <div class="grid w-full gap-2">
+        <UButton label="Another round" icon="i-lucide-repeat" block @click="loadSetup" />
+        <UButton label="Back to today" icon="i-lucide-house" to="/" color="neutral" variant="outline" block />
+      </div>
+    </UCard>
 
     <template v-else-if="phase === 'playing' && round">
-      <div class="progress">
-        <div class="bar"><div :style="{ width: `${(round.index / round.cards.length) * 100}%` }" /></div>
-        <span class="muted">{{ Math.min(round.index + 1, round.cards.length) }} / {{ round.cards.length }}</span>
+      <div class="flex items-center gap-3">
+        <UProgress :model-value="round.index" :max="round.cards.length" size="sm" class="flex-1" />
+        <span class="text-sm font-medium text-muted tabular-nums">
+          {{ Math.min(round.index + 1, round.cards.length) }} / {{ round.cards.length }}
+        </span>
       </div>
 
-      <p v-if="!card" class="muted center">Loading…</p>
+      <p v-if="!card" class="text-center text-muted">Loading…</p>
       <template v-else>
-        <section class="card stack prompt">
+        <UCard :ui="{ body: 'flex flex-col gap-4' }">
           <FieldView
             v-for="f in promptFields"
             :key="f.name"
@@ -299,48 +320,74 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :note-type="card.note_type"
             large
           />
-        </section>
+        </UCard>
 
-        <p class="question">{{ question }}</p>
+        <div class="flex justify-center">
+          <UBadge :label="question" color="primary" variant="soft" size="xl" class="rounded-full px-4" />
+        </div>
 
         <!-- Answer input -->
-        <section v-if="!revealed" class="answer-input">
-          <form v-if="mode === 'typed'" class="typed" @submit.prevent="submitTyped">
-            <input
+        <template v-if="!revealed">
+          <form v-if="mode === 'typed'" class="flex flex-col gap-2" @submit.prevent="submitTyped">
+            <UInput
               v-model="typed"
-              type="text"
+              :placeholder="question"
+              :aria-label="question"
               autocomplete="off"
               autocapitalize="off"
-              spellcheck="false"
-              :placeholder="question"
+              :spellcheck="false"
               autofocus
+              class="w-full"
             />
-            <button class="primary" :disabled="busy || !typed.trim()">Check</button>
-            <button type="button" class="link" @click="giveUp">I don't know</button>
+            <UButton type="submit" label="Check" block :disabled="!typed.trim()" :loading="busy" />
+            <UButton label="I don't know" color="neutral" variant="ghost" block @click="giveUp" />
           </form>
 
-          <div v-else-if="mode === 'multiple_choice'" class="choices">
-            <button v-for="c in card.choices" :key="c" @click="pick(c)">{{ c }}</button>
+          <div v-else-if="mode === 'multiple_choice'" class="grid grid-cols-2 gap-2">
+            <UButton
+              v-for="c in card.choices"
+              :key="c"
+              color="neutral"
+              variant="outline"
+              block
+              class="min-h-14 text-center"
+              @click="pick(c)"
+            >
+              {{ c }}
+            </UButton>
           </div>
 
-          <button v-else class="primary wide" @click="revealed = true">Show answer</button>
-        </section>
+          <UButton v-else label="Show answer" icon="i-lucide-eye" block @click="revealed = true" />
+        </template>
 
         <!-- Revealed -->
         <template v-else>
-          <div v-if="mode === 'multiple_choice'" class="choices">
-            <button
+          <div v-if="mode === 'multiple_choice'" class="grid grid-cols-2 gap-2">
+            <UButton
               v-for="c in card.choices"
               :key="c"
+              :color="c === correctChoice ? 'success' : c === picked ? 'error' : 'neutral'"
+              :variant="c === correctChoice || c === picked ? 'soft' : 'outline'"
+              :trailing-icon="c === correctChoice ? 'i-lucide-check' : c === picked ? 'i-lucide-x' : undefined"
+              block
               disabled
-              :class="{ correct: c === correctChoice, wrong: c === picked && c !== correctChoice }"
+              class="min-h-14 text-center disabled:cursor-default"
+              :class="c === correctChoice || c === picked ? 'disabled:opacity-100' : 'disabled:opacity-50'"
             >
               {{ c }}
-            </button>
+            </UButton>
           </div>
 
-          <section class="card stack answer" :class="verdict">
-            <p v-if="verdict" class="verdict">
+          <UCard
+            :class="verdict === 'correct' ? 'bg-success/8 ring-success/40' : verdict === 'wrong' ? 'bg-error/8 ring-error/40' : ''"
+            :ui="{ body: 'flex flex-col gap-4' }"
+          >
+            <p
+              v-if="verdict"
+              class="flex items-center gap-2 font-semibold"
+              :class="verdict === 'correct' ? 'text-success' : 'text-error'"
+            >
+              <UIcon :name="verdict === 'correct' ? 'i-lucide-circle-check' : 'i-lucide-circle-x'" class="size-5 shrink-0" />
               <template v-if="verdict === 'correct'">Correct</template>
               <template v-else-if="gaveUp">The answer is {{ answerFields.map((f) => card!.fields[f.name]).join(', ') }}</template>
               <template v-else>Not quite{{ typed ? ` (you wrote “${typed}”)` : '' }}</template>
@@ -351,18 +398,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               :exclude="shownInPrompt"
               :highlight="card.template.answer"
             />
-          </section>
+          </UCard>
 
-          <button
+          <UButton
             v-if="verdict === 'wrong'"
             ref="continueButton"
-            class="primary wide continue"
+            block
+            class="flex-col gap-0"
             :disabled="busy"
             @click="rate('again')"
           >
-            Continue
-            <span class="small">recorded as Again</span>
-          </button>
+            <span class="font-semibold">Continue</span>
+            <span class="text-xs font-normal opacity-85">recorded as Again</span>
+          </UButton>
           <RatingButtons
             v-else
             :key="`${card.note_id}/${card.template_id}`"
@@ -377,111 +425,3 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     </template>
   </div>
 </template>
-
-<style scoped>
-.review {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-.center {
-  text-align: center;
-}
-.small {
-  font-size: 0.85rem;
-}
-.actions {
-  display: grid;
-  gap: 0.5rem;
-}
-.setup p {
-  margin: 0;
-}
-.sizes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-}
-.sizes .selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--focus);
-  font-weight: 600;
-}
-.progress {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-.bar {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--border);
-  overflow: hidden;
-}
-.bar div {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.2s;
-}
-.question {
-  text-align: center;
-  margin: 0;
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: var(--accent);
-}
-.typed {
-  display: grid;
-  gap: 0.5rem;
-}
-.link {
-  background: none;
-  border: none;
-  color: var(--muted);
-  min-height: 40px;
-}
-.choices {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-}
-.choices button {
-  min-height: 56px;
-}
-.choices button:disabled {
-  opacity: 1;
-}
-.choices .correct,
-.answer.correct {
-  background: var(--correct-bg);
-  border-color: var(--good);
-}
-.choices .wrong,
-.answer.wrong {
-  background: var(--wrong-bg);
-  border-color: var(--again);
-}
-.wide {
-  width: 100%;
-}
-.verdict {
-  font-weight: 600;
-  margin: 0;
-}
-.continue {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.1rem;
-}
-.continue .small {
-  opacity: 0.85;
-  font-weight: 400;
-}
-</style>

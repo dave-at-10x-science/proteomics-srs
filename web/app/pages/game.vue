@@ -107,46 +107,59 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 </script>
 
 <template>
-  <div class="stack">
+  <div class="flex flex-col gap-4">
     <!-- Setup -->
-    <section v-if="!board" class="card stack">
-      <h1>Memory game</h1>
-      <p class="muted">Find the matching pairs. Only uses cards you've already studied, and doesn't affect your reviews.</p>
-      <template v-if="options && options.length">
-        <label>
-          Set
-          <select v-model="setId">
-            <option v-for="o in options" :key="o.set_id" :value="o.set_id">
-              {{ o.set_name }} ({{ o.introduced }} studied)
-            </option>
-          </select>
-        </label>
-        <label v-if="option">
-          Match
-          <select v-model.number="pairingIdx">
-            <option v-for="(p, i) in option.pairings" :key="p.label" :value="i">{{ p.label }}</option>
-          </select>
-        </label>
-        <label>
-          Pairs
-          <select v-model.number="pairs">
-            <option v-for="n in [4, 6, 8, 10]" :key="n" :value="n">{{ n }}</option>
-          </select>
-        </label>
-        <p v-if="error" class="error">{{ error }}</p>
-        <button class="primary" @click="start">Play</button>
-      </template>
-      <p v-else-if="options" class="muted">Study a few cards first, then come back to play.</p>
-    </section>
+    <template v-if="!board">
+      <UCard v-if="options && !options.length">
+        <UEmpty
+          icon="i-lucide-puzzle"
+          title="Nothing to play with yet"
+          description="The memory game only uses cards you've studied. Study a few, then come back."
+          variant="naked"
+          :actions="[{ label: 'Study new notes', icon: 'i-lucide-book-open', to: '/study' }]"
+        />
+      </UCard>
+      <UCard v-else :ui="{ body: 'flex flex-col gap-5' }">
+        <div class="flex items-center gap-3">
+          <span class="flex size-11 items-center justify-center rounded-xl bg-primary/12 text-primary">
+            <UIcon name="i-lucide-puzzle" class="size-6" />
+          </span>
+          <div>
+            <h1 class="text-lg font-semibold text-highlighted">Memory game</h1>
+            <p class="text-sm text-muted">Find the matching pairs.</p>
+          </div>
+        </div>
+        <p class="text-sm text-toned">Only uses cards you've already studied, and doesn't affect your reviews.</p>
+        <template v-if="options">
+          <UFormField label="Set" :hint="option ? `${option.introduced} studied` : undefined">
+            <USelect
+              v-model="setId"
+              :items="options.map((o) => ({ label: o.set_name, value: o.set_id }))"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField v-if="option" label="Match">
+            <USelect
+              v-model="pairingIdx"
+              :items="option.pairings.map((p, i) => ({ label: p.label, value: i }))"
+              class="w-full"
+            />
+          </UFormField>
+          <SegmentedPicker v-model="pairs" :items="[4, 6, 8, 10]" legend="Pairs" />
+          <ErrorAlert :errors="error" />
+          <UButton label="Play" icon="i-lucide-play" block @click="start" />
+        </template>
+      </UCard>
+    </template>
 
     <!-- Game -->
     <template v-else>
-      <div class="status">
-        <span>{{ matched }} / {{ total }} pairs</span>
-        <span>{{ flips }} flips</span>
-        <span>{{ seconds(elapsed) }}</span>
+      <div class="flex items-center justify-between text-sm font-medium text-muted tabular-nums">
+        <span class="flex items-center gap-1.5"><UIcon name="i-lucide-check-check" class="size-4" />{{ matched }} / {{ total }} pairs</span>
+        <span class="flex items-center gap-1.5"><UIcon name="i-lucide-mouse-pointer-click" class="size-4" />{{ flips }} flips</span>
+        <span class="flex items-center gap-1.5"><UIcon name="i-lucide-timer" class="size-4" />{{ seconds(elapsed) }}</span>
       </div>
-      <div class="grid" :style="{ gridTemplateColumns: `repeat(${columns}, 1fr)` }">
+      <div class="grid gap-2" :style="{ gridTemplateColumns: `repeat(${columns}, 1fr)` }">
         <GameTile
           v-for="t in board.tiles"
           :key="t.id"
@@ -157,73 +170,23 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
           @flip="flip(t.id)"
         />
       </div>
-      <section v-if="done" class="card stack result">
-        <h2>All matched!</h2>
-        <p>{{ total }} pairs in {{ seconds(elapsed) }} with {{ flips }} flips.</p>
-        <p v-if="best && best.games > 1" class="muted">
-          Best: {{ seconds(best.best_ms ?? 0) }}, fewest flips {{ best.fewest_flips }} ({{ best.games }} games)
-        </p>
-        <div class="actions">
-          <button class="primary" @click="start">Play again</button>
-          <button @click="board = null">Change game</button>
+      <UCard v-if="done" :ui="{ body: 'flex flex-col items-center gap-4 py-6 text-center' }">
+        <span class="flex size-14 items-center justify-center rounded-full bg-success/12 text-success">
+          <UIcon name="i-lucide-trophy" class="size-7" />
+        </span>
+        <div>
+          <h2 class="text-xl font-semibold text-highlighted">All matched!</h2>
+          <p class="mt-1 text-muted">{{ total }} pairs in {{ seconds(elapsed) }} with {{ flips }} flips.</p>
+          <p v-if="best && best.games > 1" class="mt-1 text-sm text-muted">
+            Best: {{ seconds(best.best_ms ?? 0) }}, fewest flips {{ best.fewest_flips }} ({{ best.games }} games)
+          </p>
         </div>
-      </section>
-      <button v-else class="quit" @click="board = null">Quit</button>
+        <div class="grid w-full grid-cols-2 gap-2">
+          <UButton label="Play again" icon="i-lucide-rotate-ccw" block @click="start" />
+          <UButton label="Change game" color="neutral" variant="outline" block @click="board = null" />
+        </div>
+      </UCard>
+      <UButton v-else label="Quit" color="neutral" variant="ghost" class="self-center" @click="board = null" />
     </template>
   </div>
 </template>
-
-<style scoped>
-h1,
-h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-label {
-  display: grid;
-  gap: 0.35rem;
-  font-weight: 600;
-}
-select {
-  font: inherit;
-  padding: 0.6rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  min-height: 44px;
-}
-.status {
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.grid {
-  display: grid;
-  gap: 0.5rem;
-}
-.result {
-  text-align: center;
-}
-.result p {
-  margin: 0;
-}
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-.quit {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  background: none;
-  border: none;
-  color: var(--muted);
-}
-.error {
-  color: var(--again);
-  margin: 0;
-}
-</style>

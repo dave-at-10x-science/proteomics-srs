@@ -33,42 +33,22 @@ async function save(fields: Record<string, FieldValue>, status: 'draft' | 'publi
 </script>
 
 <template>
-  <div class="stack">
-    <NuxtLink :to="`/sets/${encodeURIComponent(setId)}`" class="back">← Back to set</NuxtLink>
-    <section class="card stack">
-      <h1>New note</h1>
-      <label v-if="types.length > 1" class="type">
-        Kind
-        <select v-model="typeId">
-          <option v-for="t in types" :key="t.id" :value="t.id">{{ t.id }}</option>
-        </select>
-      </label>
+  <div class="flex flex-col gap-4">
+    <UButton
+      :to="`/sets/${encodeURIComponent(setId)}`"
+      label="Back to set"
+      icon="i-lucide-arrow-left"
+      color="neutral"
+      variant="link"
+      size="md"
+      class="self-start px-0"
+    />
+    <h1 class="text-2xl font-bold tracking-tight text-highlighted">New note</h1>
+    <UCard :ui="{ body: 'flex flex-col gap-5' }">
+      <UFormField v-if="types.length > 1" label="Kind">
+        <USelect v-model="typeId" :items="types.map((t) => t.id)" class="w-full" />
+      </UFormField>
       <NoteForm v-if="noteType" :key="noteType.id" :note-type="noteType" :saving="saving" :errors="errors" @save="save" />
-    </section>
+    </UCard>
   </div>
 </template>
-
-<style scoped>
-.back {
-  text-decoration: none;
-  color: var(--muted);
-}
-h1 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-.type {
-  display: grid;
-  gap: 0.35rem;
-  font-weight: 600;
-}
-select {
-  font: inherit;
-  padding: 0.6rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  min-height: 44px;
-}
-</style>

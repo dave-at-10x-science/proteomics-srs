@@ -74,106 +74,75 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="study">
-    <p v-if="error" class="card">{{ error }}</p>
+  <div class="flex flex-col gap-4">
+    <ErrorAlert :errors="error" />
 
-    <section v-if="phase === 'setup'" class="card stack">
-      <h2>Study new notes</h2>
-      <template v-if="remaining !== null">
-        <template v-if="remaining > 0">
-          <p class="muted">
-            <strong>{{ remaining }}</strong> {{ remaining === 1 ? 'note' : 'notes' }} not studied yet. Read through a
-            batch; afterwards all of their cards join your review rounds.
-          </p>
-          <div class="sizes" role="radiogroup" aria-label="Notes in this batch">
-            <button
-              v-for="s in SIZES"
-              :key="s"
-              role="radio"
-              :aria-checked="size === s"
-              :class="{ selected: size === s }"
-              @click="size = s"
-            >
-              {{ s }}
-            </button>
+    <template v-if="phase === 'setup'">
+      <UCard v-if="remaining === null">
+        <p class="text-muted">Loading…</p>
+      </UCard>
+      <UCard v-else-if="remaining > 0" :ui="{ body: 'flex flex-col gap-5' }">
+        <div class="flex items-center gap-3">
+          <span class="flex size-11 items-center justify-center rounded-xl bg-primary/12 text-primary">
+            <UIcon name="i-lucide-book-open" class="size-6" />
+          </span>
+          <div>
+            <h1 class="text-lg font-semibold text-highlighted">Study new notes</h1>
+            <p class="text-sm text-muted">
+              <span class="font-semibold text-default tabular-nums">{{ remaining }}</span>
+              {{ remaining === 1 ? 'note' : 'notes' }} not studied yet
+            </p>
           </div>
-          <button class="primary wide" :disabled="busy" @click="start">
-            Study {{ batchSize }} {{ batchSize === 1 ? 'note' : 'notes' }}
-          </button>
-        </template>
-        <template v-else>
-          <p>You've studied everything in your sets.</p>
-          <NuxtLink to="/review"><button class="primary wide">Start a review round</button></NuxtLink>
-        </template>
-      </template>
-      <p v-else class="muted">Loading…</p>
-    </section>
+        </div>
+        <p class="text-sm text-toned">Read through a batch. Afterwards, all of their cards join your review rounds.</p>
+        <SegmentedPicker v-model="size" :items="SIZES" legend="Notes in this batch" />
+        <UButton
+          :label="`Study ${batchSize} ${batchSize === 1 ? 'note' : 'notes'}`"
+          trailing-icon="i-lucide-arrow-right"
+          block
+          :loading="busy"
+          @click="start"
+        />
+      </UCard>
+      <UCard v-else>
+        <UEmpty
+          icon="i-lucide-graduation-cap"
+          title="You've studied everything"
+          description="Every note in your sets is in your review rounds."
+          variant="naked"
+          :actions="[{ label: 'Start a review round', icon: 'i-lucide-play', to: '/review' }]"
+        />
+      </UCard>
+    </template>
 
     <template v-else-if="phase === 'studying'">
       <NoteFlipper v-model:index="index" :notes="notes" :types="types">
         <template #next="{ go }">
-          <button v-if="atEnd" class="primary done" :disabled="busy" @click="finish">Done</button>
-          <button v-else class="primary" aria-label="Next" @click="go(1)">→</button>
+          <UButton v-if="atEnd" label="Done" icon="i-lucide-check" block :loading="busy" @click="finish" />
+          <UButton v-else icon="i-lucide-arrow-right" aria-label="Next" block @click="go(1)" />
         </template>
       </NoteFlipper>
-      <p class="muted small center">
+      <p class="text-center text-sm text-muted">
         Take your time. When you press Done, these {{ notes.length }} go into your review rounds.
       </p>
     </template>
 
-    <section v-else class="card stack center">
-      <h2>Studied</h2>
-      <p>
-        {{ notes.length }} {{ notes.length === 1 ? 'note is' : 'notes are' }} now in your review rounds{{
-          added < notes.length ? ` (${notes.length - added} already were)` : ''
-        }}.
-      </p>
-      <div class="actions">
-        <NuxtLink to="/review"><button class="primary wide">Start a review round</button></NuxtLink>
-        <button class="wide" @click="loadSetup">Study more</button>
+    <UCard v-else :ui="{ body: 'flex flex-col items-center gap-4 py-8 text-center' }">
+      <span class="flex size-16 items-center justify-center rounded-full bg-success/12 text-success">
+        <UIcon name="i-lucide-graduation-cap" class="size-8" />
+      </span>
+      <div>
+        <h1 class="text-xl font-semibold text-highlighted">Studied</h1>
+        <p class="mt-1 text-muted">
+          {{ notes.length }} {{ notes.length === 1 ? 'note is' : 'notes are' }} now in your review rounds{{
+            added < notes.length ? ` (${notes.length - added} already were)` : ''
+          }}.
+        </p>
       </div>
-    </section>
+      <div class="grid w-full gap-2">
+        <UButton label="Start a review round" icon="i-lucide-play" to="/review" block />
+        <UButton label="Study more" icon="i-lucide-book-open" color="neutral" variant="outline" block @click="loadSetup" />
+      </div>
+    </UCard>
   </div>
 </template>
-
-<style scoped>
-.study {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-p {
-  margin: 0;
-}
-.sizes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-}
-.sizes .selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--focus);
-  font-weight: 600;
-}
-.wide {
-  width: 100%;
-}
-.done {
-  font-size: 1rem !important;
-  font-weight: 600;
-}
-.actions {
-  display: grid;
-  gap: 0.5rem;
-}
-.center {
-  text-align: center;
-}
-.small {
-  font-size: 0.85rem;
-}
-</style>

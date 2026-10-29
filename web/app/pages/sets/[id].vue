@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { NoteType, SetSummary, StoredNote } from '~/types/api';
+import ConfirmModal from '~/components/ConfirmModal.vue';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id));
 const api = useApi();
+const confirm = useOverlay().create(ConfirmModal);
 const set = ref<SetSummary | null>(null);
 const notes = ref<StoredNote[]>([]);
 const types = ref<Map<string, NoteType>>(new Map());
@@ -33,7 +35,12 @@ const drafts = computed(() => notes.value.filter((n) => n.status === 'draft'));
 
 async function publishAll() {
   const n = drafts.value.length;
-  if (!confirm(`Publish ${n} ${n === 1 ? 'draft' : 'drafts'}? Their cards join your daily reviews.`)) return;
+  const ok = await confirm.open({
+    title: `Publish ${n} ${n === 1 ? 'draft' : 'drafts'}?`,
+    description: 'Their cards join your daily reviews.',
+    confirmLabel: 'Publish',
+  }).result;
+  if (!ok) return;
   publishing.value = true;
   try {
     await api.publishDrafts(id.value);
@@ -50,95 +57,77 @@ const shown = computed(() => {
 </script>
 
 <template>
-  <div class="stack">
-    <NuxtLink to="/library" class="back">← Library</NuxtLink>
-    <section v-if="set" class="card stack">
-      <div class="head">
-        <h1>{{ set.name }}</h1>
-        <div class="actions">
-          <button v-if="aiAvailable" :aria-expanded="drafting" @click="drafting = !drafting">Draft with AI</button>
-          <NuxtLink :to="`/notes/new?set=${encodeURIComponent(set.id)}`"><button class="primary">Add</button></NuxtLink>
+  <div class="flex flex-col gap-4">
+    <UButton
+      to="/library"
+      label="Library"
+      icon="i-lucide-arrow-left"
+      color="neutral"
+      variant="link"
+      size="md"
+      class="self-start px-0"
+    />
+
+    <template v-if="set">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h1 class="text-2xl font-bold tracking-tight text-highlighted">{{ set.name }}</h1>
+          <p class="text-sm text-muted">{{ notes.length }} {{ notes.length === 1 ? 'note' : 'notes' }}</p>
+        </div>
+        <div class="flex gap-2">
+          <UButton
+            v-if="aiAvailable"
+            label="Draft with AI"
+            icon="i-lucide-sparkles"
+            :color="drafting ? 'primary' : 'neutral'"
+            :variant="drafting ? 'soft' : 'outline'"
+            :aria-expanded="drafting"
+            @click="drafting = !drafting"
+          />
+          <UButton :to="`/notes/new?set=${encodeURIComponent(set.id)}`" label="Add" icon="i-lucide-plus" />
         </div>
       </div>
-      <DraftPanel
-        v-if="drafting"
-        :set-id="set.id"
-        :note-types="[...types.values()]"
-        :empty="!notes.length"
-        @drafted="reload"
+
+      <UCard v-if="drafting">
+        <DraftPanel :set-id="set.id" :note-types="[...types.values()]" :empty="!notes.length" @drafted="reload" />
+      </UCard>
+
+      <UAlert
+        v-if="drafts.length"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-file-pen-line"
+        :title="`${drafts.length} ${drafts.length === 1 ? 'draft' : 'drafts'} to check`"
+        description="Drafts are never studied until they're published."
+        :actions="[{ label: 'Publish all', color: 'warning', size: 'md', loading: publishing, onClick: publishAll }]"
       />
-      <div v-if="drafts.length" class="drafts">
-        <span class="muted">{{ drafts.length }} {{ drafts.length === 1 ? 'draft' : 'drafts' }} to check</span>
-        <button :disabled="publishing" @click="publishAll">Publish all</button>
-      </div>
-      <input v-if="notes.length > 8" v-model="filter" type="text" placeholder="Filter" />
-      <p v-if="!notes.length" class="muted">No notes yet.</p>
-      <ul class="list">
-        <li v-for="n in shown" :key="n.id">
-          <NuxtLink :to="`/notes/${encodeURIComponent(n.id)}?set=${encodeURIComponent(set.id)}`">
-            <span>{{ noteTitle(n, types.get(n.note_type_id)) }}</span>
-            <span v-if="n.status === 'draft'" class="badge">draft</span>
-          </NuxtLink>
-        </li>
-      </ul>
-    </section>
-    <p v-else class="muted">Loading…</p>
+
+      <UCard :ui="{ body: 'p-0 sm:p-0' }">
+        <div v-if="notes.length > 8" class="border-b border-default p-3">
+          <UInput v-model="filter" icon="i-lucide-search" placeholder="Filter" aria-label="Filter notes" class="w-full" />
+        </div>
+        <UEmpty
+          v-if="!notes.length"
+          icon="i-lucide-notebook-pen"
+          title="No notes yet"
+          :description="aiAvailable ? 'Add one, or draft a batch with AI.' : 'Add the first one.'"
+          variant="naked"
+        />
+        <ul class="divide-y divide-default">
+          <li v-for="n in shown" :key="n.id">
+            <ULink
+              :to="`/notes/${encodeURIComponent(n.id)}?set=${encodeURIComponent(set.id)}`"
+              raw
+              class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-elevated/50 sm:px-6"
+            >
+              <span class="min-w-0 flex-1 truncate text-highlighted">{{ noteTitle(n, types.get(n.note_type_id)) }}</span>
+              <UBadge v-if="n.status === 'draft'" label="draft" color="warning" variant="soft" size="md" />
+              <UIcon name="i-lucide-chevron-right" class="size-5 shrink-0 text-dimmed" />
+            </ULink>
+          </li>
+        </ul>
+      </UCard>
+    </template>
+    <p v-else class="text-muted">Loading…</p>
   </div>
 </template>
-
-<style scoped>
-.back {
-  text-decoration: none;
-  color: var(--muted);
-}
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-.actions {
-  display: flex;
-  gap: 0.5rem;
-}
-.drafts {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px dashed var(--hard);
-  border-radius: var(--radius);
-}
-.drafts button {
-  min-height: 40px;
-  padding: 0.4rem 0.9rem;
-}
-h1 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.list li + li {
-  border-top: 1px solid var(--border);
-}
-.list a {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.75rem 0;
-  color: var(--text);
-  text-decoration: none;
-}
-.badge {
-  font-size: 0.75rem;
-  border: 1px solid var(--hard);
-  color: var(--hard);
-  border-radius: 999px;
-  padding: 0 0.5rem;
-}
-</style>
