@@ -20,43 +20,15 @@ watchEffect(async () => {
 </script>
 
 <template>
-  <!-- Structures are drawn on a light "paper" so they read the same in dark mode. -->
-  <div class="structure" :class="{ fit }" role="img" :aria-label="`Chemical structure`">
-    <div v-if="svg" class="svg" v-html="svg" />
-    <p v-else-if="error" class="error">{{ error }}</p>
-    <p v-else class="loading">Drawing…</p>
+  <!-- Structures are drawn on white "paper" in both themes, so they read the same in dark mode. -->
+  <div
+    class="mx-auto flex aspect-square items-center justify-center bg-white"
+    :class="fit ? 'w-full rounded-[inherit]' : 'w-full max-w-60 rounded-lg'"
+    role="img"
+    aria-label="Chemical structure"
+  >
+    <div v-if="svg" class="w-full [&_svg]:block [&_svg]:h-auto [&_svg]:w-full" v-html="svg" />
+    <p v-else-if="error" class="p-4 text-sm text-neutral-600">{{ error }}</p>
+    <p v-else class="p-4 text-sm text-neutral-600">Drawing…</p>
   </div>
 </template>
-
-<style scoped>
-.structure {
-  background: #fff;
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1;
-  width: min(100%, 240px);
-  margin: 0 auto;
-  border: 1px solid var(--border);
-}
-.structure.fit {
-  width: 100%;
-  border: none;
-  border-radius: inherit;
-}
-.svg {
-  width: 100%;
-}
-.svg :deep(svg) {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-.loading,
-.error {
-  color: #666;
-  font-size: 0.9rem;
-  padding: 1rem;
-}
-</style>

@@ -46,94 +46,59 @@ async function submit() {
 </script>
 
 <template>
-  <form class="stack" @submit.prevent="submit">
-    <label class="field">
-      <span>What should the cards cover?</span>
-      <textarea
+  <form class="flex flex-col gap-4" @submit.prevent="submit">
+    <UFormField label="What should the cards cover?">
+      <UTextarea
         v-model="source"
-        rows="4"
+        :rows="4"
+        autoresize
+        :maxrows="12"
         placeholder="A topic (“proteases used in sample prep”), a list of terms, or text pasted from a paper"
+        class="w-full"
       />
-    </label>
-    <div class="inline">
-      <label class="field count">
-        <span>How many</span>
-        <input v-model.number="count" type="number" min="1" max="30" />
-      </label>
-      <label v-if="empty" class="field grow">
-        <span>Card type</span>
-        <select v-model="noteTypeId">
-          <option v-for="t in noteTypes" :key="t.id" :value="t.id">{{ t.id }}</option>
-        </select>
-      </label>
+    </UFormField>
+    <div class="flex gap-3">
+      <UFormField label="How many" class="w-28 shrink-0">
+        <UInputNumber v-model="count" :min="1" :max="30" class="w-full" />
+      </UFormField>
+      <UFormField v-if="empty" label="Card type" class="min-w-0 flex-1">
+        <USelect v-model="noteTypeId" :items="noteTypes.map((t) => t.id)" class="w-full" />
+      </UFormField>
     </div>
-    <button class="primary" :disabled="!canDraft">{{ busy ? 'Drafting… this can take a minute' : 'Draft' }}</button>
-    <ul v-if="errors.length" class="error">
-      <li v-for="e in errors" :key="e">{{ e }}</li>
-    </ul>
-    <div v-if="result" class="result">
-      <p>
-        <strong>{{ result.created.length }} {{ result.created.length === 1 ? 'draft' : 'drafts' }} added.</strong>
-        <span class="muted"> Check each one before publishing; drafts are never studied.</span>
-      </p>
-      <details v-if="result.skipped.length">
-        <summary class="muted">{{ result.skipped.length }} skipped</summary>
-        <ul class="skipped">
+    <UButton
+      type="submit"
+      :label="busy ? 'Drafting… this can take a minute' : 'Draft'"
+      icon="i-lucide-sparkles"
+      block
+      :loading="busy"
+      :disabled="!canDraft"
+    />
+    <ErrorAlert :errors="errors" />
+    <UAlert
+      v-if="result"
+      :color="result.created.length ? 'success' : 'neutral'"
+      variant="subtle"
+      :icon="result.created.length ? 'i-lucide-circle-check' : 'i-lucide-info'"
+      :title="`${result.created.length} ${result.created.length === 1 ? 'draft' : 'drafts'} added`"
+      description="Check each one before publishing; drafts are never studied."
+    />
+    <UCollapsible v-if="result?.skipped.length" class="flex flex-col gap-2">
+      <UButton
+        :label="`${result.skipped.length} skipped`"
+        color="neutral"
+        variant="link"
+        size="md"
+        trailing-icon="i-lucide-chevron-down"
+        class="group self-start px-0"
+        :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+      />
+      <template #content>
+        <ul class="list-disc ps-5 text-sm">
           <li v-for="s in result.skipped" :key="s.title + s.reason">
-            {{ s.title || 'Untitled' }}: <span class="muted">{{ s.reason }}</span>
+            {{ s.title || 'Untitled' }}: <span class="text-muted">{{ s.reason }}</span>
           </li>
         </ul>
-      </details>
-    </div>
+      </template>
+    </UCollapsible>
   </form>
 </template>
-
-<style scoped>
-.field {
-  display: grid;
-  gap: 0.35rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-textarea,
-select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 400;
-}
-textarea {
-  resize: vertical;
-}
-select {
-  min-height: 48px;
-}
-.inline {
-  display: flex;
-  gap: 0.75rem;
-}
-.count {
-  width: 6.5rem;
-}
-.grow {
-  flex: 1;
-}
-.result p {
-  margin: 0;
-}
-.skipped {
-  margin: 0.5rem 0 0;
-  padding-left: 1.2rem;
-  font-size: 0.9rem;
-}
-.error {
-  color: var(--again);
-  margin: 0;
-  padding-left: 1.2rem;
-}
-</style>

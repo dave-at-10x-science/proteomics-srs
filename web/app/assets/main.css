@@ -1,116 +1,42 @@
+/* Tailwind and Nuxt UI, plus the app's design tokens. Components are styled with Nuxt UI and
+   Tailwind utilities; only theme-wide values belong here. */
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+/* 10x Science purple, the exact shades in the logo (600, 500 and 400). 600 is the accent in light
+   mode, 400 in dark mode. */
+@theme static {
+  --color-brand-50: #faf5ff;
+  --color-brand-100: #f3e8ff;
+  --color-brand-200: #e9d5ff;
+  --color-brand-300: #d8b4fe;
+  --color-brand-400: #c084fc;
+  --color-brand-500: #a855f7;
+  --color-brand-600: #9333ea;
+  --color-brand-700: #7e22ce;
+  --color-brand-800: #6b21a8;
+  --color-brand-900: #581c87;
+  --color-brand-950: #3b0764;
+}
+
 :root {
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --text: #1b1f24;
-  --muted: #5d6670;
-  --border: #d9dee4;
-  --accent: #1f5f8b;
-  --accent-text: #ffffff;
-  --again: #c8423b;
-  --hard: #c98a12;
-  --good: #2e8b57;
-  --easy: #2f6fbf;
-  --correct-bg: #e5f4ea;
-  --wrong-bg: #fbe7e5;
-  --focus: rgba(31, 95, 139, 0.35);
-  --radius: 12px;
-  color-scheme: light dark;
+  --ui-radius: 0.5rem;
+  /* Darker shades than the defaults, so colored text and outlines read well on white. */
+  --ui-primary: var(--ui-color-primary-600);
+  --ui-success: var(--ui-color-success-700);
+  --ui-info: var(--ui-color-info-600);
+  --ui-warning: var(--ui-color-warning-700);
+  --ui-error: var(--ui-color-error-600);
+  /* The page sits a shade away from the cards, so cards stand out. */
+  --app-page: var(--ui-color-neutral-100);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #12161b;
-    --surface: #1b2128;
-    --text: #e7eaee;
-    --muted: #9aa4af;
-    --border: #2d3640;
-    --accent: #4a9bd1;
-    --accent-text: #0b1117;
-    --correct-bg: #183324;
-    --wrong-bg: #3a1c1a;
-    --focus: rgba(74, 155, 209, 0.45);
-  }
+.dark {
+  --ui-primary: var(--ui-color-primary-400);
+  --app-page: var(--ui-color-neutral-950);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
 body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  line-height: 1.45;
-  -webkit-text-size-adjust: 100%;
-}
-
-a {
-  color: var(--accent);
-}
-
-button,
-input {
-  font: inherit;
-  color: inherit;
-}
-
-button {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.75rem 1rem;
-  min-height: 48px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-  font-weight: 600;
-}
-
-input[type='text'],
-input[type='number'] {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  min-height: 48px;
-  font-size: 1.1rem; /* 16px+ stops iOS zooming on focus */
-}
-
-input:focus,
-button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--focus);
-}
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.stack > * + * {
-  margin-top: 1rem;
+  background-color: var(--app-page);
+  -webkit-tap-highlight-color: transparent;
 }

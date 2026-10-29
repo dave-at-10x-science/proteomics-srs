@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import type { FieldValue, NoteType, StoredNote } from '~/types/api';
+import ConfirmModal from '~/components/ConfirmModal.vue';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id));
 const back = computed(() => (route.query.set ? `/sets/${encodeURIComponent(String(route.query.set))}` : '/library'));
 const api = useApi();
+const toast = useToast();
+const confirm = useOverlay().create(ConfirmModal);
 const note = ref<StoredNote | null>(null);
 const noteType = ref<NoteType | null>(null);
 const saving = ref(false);
 const errors = ref<string[]>([]);
-const saved = ref(false);
 
 onMounted(async () => {
   note.value = await api.note(id.value);
@@ -19,10 +21,9 @@ onMounted(async () => {
 async function save(fields: Record<string, FieldValue>, status: 'draft' | 'published') {
   saving.value = true;
   errors.value = [];
-  saved.value = false;
   try {
     note.value = await api.updateNote(id.value, { fields, status });
-    saved.value = true;
+    toast.add({ title: 'Saved', icon: 'i-lucide-circle-check', color: 'success' });
   } catch (e) {
     errors.value = apiErrors(e);
   } finally {
@@ -31,43 +32,42 @@ async function save(fields: Record<string, FieldValue>, status: 'draft' | 'publi
 }
 
 async function remove() {
-  if (!confirm('Delete this note and its review history?')) return;
+  const ok = await confirm.open({
+    title: 'Delete this note?',
+    description: 'Its review history is deleted too. This can’t be undone.',
+    confirmLabel: 'Delete',
+    color: 'error',
+  }).result;
+  if (!ok) return;
   await api.deleteNote(id.value);
   await navigateTo(back.value);
 }
 </script>
 
 <template>
-  <div class="stack">
-    <NuxtLink :to="back" class="back">← Back</NuxtLink>
-    <section v-if="note && noteType" class="card stack">
-      <h1>{{ noteTitle(note, noteType) }}</h1>
-      <NoteForm
-        :note-type="noteType"
-        :initial="noteFields(note)"
-        :initial-status="note.status"
-        :saving="saving"
-        :errors="errors"
-        @save="save"
-      />
-      <p v-if="saved" class="muted">Saved.</p>
-    </section>
-    <button v-if="note" class="delete" @click="remove">Delete note</button>
+  <div class="flex flex-col gap-4">
+    <UButton
+      :to="back"
+      label="Back"
+      icon="i-lucide-arrow-left"
+      color="neutral"
+      variant="link"
+      size="md"
+      class="self-start px-0"
+    />
+    <template v-if="note && noteType">
+      <h1 class="text-2xl font-bold tracking-tight text-highlighted">{{ noteTitle(note, noteType) }}</h1>
+      <UCard>
+        <NoteForm
+          :note-type="noteType"
+          :initial="noteFields(note)"
+          :initial-status="note.status"
+          :saving="saving"
+          :errors="errors"
+          @save="save"
+        />
+      </UCard>
+      <UButton label="Delete note" icon="i-lucide-trash-2" color="error" variant="soft" block @click="remove" />
+    </template>
   </div>
 </template>
-
-<style scoped>
-.back {
-  text-decoration: none;
-  color: var(--muted);
-}
-h1 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-.delete {
-  color: var(--again);
-  border-color: var(--again);
-  background: transparent;
-}
-</style>

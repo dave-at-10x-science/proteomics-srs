@@ -37,57 +37,32 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="browse">
-    <p v-if="error" class="card">{{ error }}</p>
+  <div class="flex flex-col gap-4">
+    <ErrorAlert :errors="error" />
 
-    <div class="controls">
-      <select v-model="setId" aria-label="Set">
-        <option v-for="s in sets" :key="s.id" :value="s.id">{{ s.name }}</option>
-      </select>
-      <label class="shuffle"><input v-model="shuffled" type="checkbox" /> Shuffle</label>
+    <div class="flex items-center gap-2">
+      <USelect
+        v-model="setId"
+        :items="sets.map((s) => ({ label: s.name, value: s.id }))"
+        aria-label="Set"
+        class="min-w-0 flex-1"
+      />
+      <UButton
+        icon="i-lucide-shuffle"
+        :color="shuffled ? 'primary' : 'neutral'"
+        :variant="shuffled ? 'soft' : 'outline'"
+        :aria-pressed="shuffled"
+        aria-label="Shuffle"
+        @click="shuffled = !shuffled"
+      />
     </div>
 
     <template v-if="notes.length">
       <NoteFlipper v-model:index="index" :notes="notes" :types="types" wrap />
-      <p class="muted small center">Swipe or use the arrow keys. Browsing doesn't change your schedule.</p>
+      <p class="text-center text-sm text-muted">Swipe or use the arrow keys. Browsing doesn't change your schedule.</p>
     </template>
-    <p v-else-if="setId" class="muted center">No cards in this set yet.</p>
+    <UCard v-else-if="setId">
+      <UEmpty icon="i-lucide-layers" title="No cards in this set yet" variant="naked" />
+    </UCard>
   </div>
 </template>
-
-<style scoped>
-.browse {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.controls {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-select {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  color: inherit;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.75rem;
-  min-height: 44px;
-}
-.shuffle {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  white-space: nowrap;
-}
-.center {
-  text-align: center;
-}
-.small {
-  font-size: 0.85rem;
-  margin: 0;
-}
-</style>

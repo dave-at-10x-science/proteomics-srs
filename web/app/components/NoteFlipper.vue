@@ -36,35 +36,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <div v-if="note && noteType" class="flipper">
-    <section class="card stack" @touchstart.passive="onTouchStart" @touchend="onTouchEnd">
+  <div v-if="note && noteType" class="flex flex-col gap-3">
+    <UCard @touchstart.passive="onTouchStart" @touchend="onTouchEnd">
       <NoteFacts :note-type="noteType" :fields="noteFields(note)" visuals-first />
-    </section>
-    <div class="nav">
-      <button aria-label="Previous" :disabled="!wrap && index === 0" @click="go(-1)">←</button>
-      <span class="muted">{{ index + 1 }} / {{ notes.length }}</span>
+    </UCard>
+    <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <UButton
+        icon="i-lucide-arrow-left"
+        color="neutral"
+        variant="outline"
+        aria-label="Previous"
+        block
+        :disabled="!wrap && index === 0"
+        @click="go(-1)"
+      />
+      <span class="text-sm font-medium text-muted tabular-nums">{{ index + 1 }} / {{ notes.length }}</span>
       <slot name="next" :go="go">
-        <button class="primary" aria-label="Next" @click="go(1)">→</button>
+        <UButton icon="i-lucide-arrow-right" aria-label="Next" block @click="go(1)" />
       </slot>
     </div>
   </div>
 </template>
-
-<style scoped>
-.flipper {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.nav {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 0.75rem;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.nav :deep(button) {
-  font-size: 1.25rem;
-}
-</style>

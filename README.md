@@ -1,5 +1,6 @@
 # proteomics-srs
-Spaced repetition system for learning about proteomic and mass spectrometry
+**Proteomic Pull-ups** by 10x Science: spaced repetition for learning about proteomics and mass
+spectrometry.
 
 A daily study tool: a short queue of due cards on your phone, scheduled with FSRS, plus a
 matching-pairs memory game for practice. Structures are drawn from SMILES. See
@@ -10,7 +11,8 @@ matching-pairs memory game for practice. Structures are drawn from SMILES. See
 ```
 crates/srs-core/   Scheduling (FSRS), daily queue, content model, answer checking. No I/O; builds for WASM.
 crates/srs-server/ Local server: JSON API + serves the web app. SQLite in data/.
-web/               Nuxt SPA, installable as a PWA. Structures drawn from SMILES with RDKit.js.
+web/               Nuxt SPA built with Nuxt UI, installable as a PWA. Structures drawn from SMILES
+                   with RDKit.js.
 seed/              Starter sets as YAML: the 20 amino acids (default), MS/proteomics vocabulary,
                    PTMs, monosaccharides, and N-/O-glycosylation.
 tools/             Content helpers (SMILES validation and structure previews).
@@ -54,12 +56,13 @@ just wait. Typed and multiple-choice answers grade themselves: a wrong answer is
 Again, and a right one offers Hard / Good / Easy with Good focused, so Enter moves on.
 
 **Start over** from Settings to forget all progress (studied notes, schedules, review history,
-game results) and begin as if for the first time. Sets, notes and settings are kept.
+game results) and begin as if for the first time. Sets, notes and settings are kept. Settings
+also picks the theme: light, dark, or the system's.
 
-**Browse** (in the header) flips through a set like flash cards, with every field shown. It
+**Browse** (in the tab bar) flips through a set like flash cards, with every field shown. It
 doesn't change your review schedule.
 
-**Memory game** (Game in the header): match pairs such as structure ↔ name or one-letter code ↔
+**Memory game** (Game in the tab bar): match pairs such as structure ↔ name or one-letter code ↔
 name, using only notes you've already studied. Results are kept for personal bests, and the game
 never changes your review schedule.
 

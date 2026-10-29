@@ -24,56 +24,43 @@ onMounted(load);
 </script>
 
 <template>
-  <div class="stack">
-    <section class="card">
-      <h1>Library</h1>
-      <ul class="list">
+  <div class="flex flex-col gap-4">
+    <h1 class="text-2xl font-bold tracking-tight text-highlighted">Library</h1>
+
+    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <ul class="divide-y divide-default">
         <li v-for="s in sets" :key="s.id">
-          <NuxtLink :to="`/sets/${encodeURIComponent(s.id)}`">
-            <span>{{ s.name }}</span>
-            <span class="muted small">{{ s.note_count }} notes{{ s.subscribed ? '' : ' · not studying' }}</span>
-          </NuxtLink>
+          <ULink
+            :to="`/sets/${encodeURIComponent(s.id)}`"
+            raw
+            class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-elevated/50 sm:px-6"
+          >
+            <span
+              class="flex size-10 shrink-0 items-center justify-center rounded-lg"
+              :class="s.subscribed ? 'bg-primary/12 text-primary' : 'bg-elevated text-muted'"
+            >
+              <UIcon name="i-lucide-layers" class="size-5" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-medium text-highlighted">{{ s.name }}</span>
+              <span class="block text-sm text-muted">
+                {{ s.note_count }} notes{{ s.subscribed ? '' : ' · not studying' }}
+              </span>
+            </span>
+            <UIcon name="i-lucide-chevron-right" class="size-5 shrink-0 text-dimmed" />
+          </ULink>
         </li>
       </ul>
-    </section>
+    </UCard>
 
-    <form class="card stack" @submit.prevent="create">
-      <h2>New set</h2>
-      <input v-model="name" type="text" placeholder="e.g. Proteases" />
-      <p v-for="e in errors" :key="e" class="error">{{ e }}</p>
-      <button class="primary" :disabled="!name.trim()">Create set</button>
-    </form>
+    <UCard>
+      <form class="flex flex-col gap-3" @submit.prevent="create">
+        <UFormField label="New set" description="Make your own set, then add notes to it.">
+          <UInput v-model="name" placeholder="e.g. Proteases" class="w-full" />
+        </UFormField>
+        <ErrorAlert :errors="errors" />
+        <UButton type="submit" label="Create set" icon="i-lucide-plus" block :disabled="!name.trim()" />
+      </form>
+    </UCard>
   </div>
 </template>
-
-<style scoped>
-h1,
-h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-}
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.list li + li {
-  border-top: 1px solid var(--border);
-}
-.list a {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  padding: 0.8rem 0;
-  color: var(--text);
-  text-decoration: none;
-}
-.small {
-  font-size: 0.85rem;
-}
-.error {
-  color: var(--again);
-  margin: 0;
-}
-</style>

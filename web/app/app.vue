@@ -1,54 +1,25 @@
 <template>
-  <div class="shell">
-    <header>
-      <NuxtLink to="/" class="title">Proteomics SRS</NuxtLink>
-      <nav>
-        <NuxtLink to="/browse">Browse</NuxtLink>
-        <NuxtLink to="/game">Game</NuxtLink>
-        <NuxtLink to="/library">Library</NuxtLink>
-        <NuxtLink to="/settings">Settings</NuxtLink>
-      </nav>
-    </header>
-    <main>
-      <NuxtPage />
-    </main>
-  </div>
+  <UApp :toaster="{ position: 'top-center', duration: 3000 }">
+    <!-- Bottom padding leaves room for the tab bar. -->
+    <div
+      class="mx-auto flex min-h-dvh max-w-xl flex-col px-4 pt-[env(safe-area-inset-top)] pb-[calc(6rem+env(safe-area-inset-bottom))]"
+    >
+      <header class="flex items-center py-3.5">
+        <NuxtLink to="/" class="flex min-w-0 items-center gap-3">
+          <UColorModeImage
+            light="/10x-science-logo-light.svg"
+            dark="/10x-science-logo.svg"
+            alt="10x Science"
+            class="h-5.5 w-auto shrink-0"
+          />
+          <USeparator orientation="vertical" class="h-5" />
+          <span class="truncate font-semibold tracking-tight text-highlighted">Proteomic Pull-ups</span>
+        </NuxtLink>
+      </header>
+      <main class="flex flex-1 flex-col">
+        <NuxtPage />
+      </main>
+    </div>
+    <AppTabBar />
+  </UApp>
 </template>
-
-<style scoped>
-.shell {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: calc(12px + env(safe-area-inset-top)) 0 12px;
-}
-.title {
-  font-weight: 700;
-  color: var(--text);
-  text-decoration: none;
-}
-nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.25rem 1rem;
-}
-nav a {
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.95rem;
-}
-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-</style>
