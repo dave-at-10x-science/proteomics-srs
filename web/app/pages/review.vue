@@ -123,6 +123,14 @@ const shownInPrompt = computed(() => promptFields.value.filter((f) => f.type ===
 
 const mode = computed(() => card.value?.template.mode);
 
+/** The answer box's character limit, when every accepted field has one (e.g. 3 for a code). */
+const maxAnswerLength = computed(() => {
+  const t = card.value?.template;
+  if (!t) return undefined;
+  const limits = defs(t.accept?.length ? t.accept : t.answer).map((f) => f.max_length);
+  return limits.length > 0 && limits.every((n): n is number => n !== undefined) ? Math.max(...limits) : undefined;
+});
+
 /** What to answer with, e.g. "Type the three-letter code". */
 const question = computed(() => {
   const labels = answerFields.value.map((f) => fieldLabel(f).toLowerCase());
@@ -192,7 +200,7 @@ async function rate(rating: Rating) {
   }
 }
 
-// A wrong answer is recorded as Again; Continue is focused so Enter moves on.
+// A wrong answer is recorded as Again; the Incorrect button is focused so Enter moves on.
 const continueButton = useTemplateRef<{ $el: HTMLElement }>('continueButton');
 watch(continueButton, (b) => b?.$el.focus());
 
@@ -253,16 +261,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           </div>
         </div>
         <SegmentedPicker v-model="size" :items="SIZES" legend="Cards in this round" />
-        <div class="flex flex-col gap-2">
-          <UButton
-            :label="`Start round of ${roundSize} ${roundSize === 1 ? 'card' : 'cards'}`"
-            trailing-icon="i-lucide-arrow-right"
-            block
-            :loading="busy"
-            @click="start"
-          />
-          <p class="text-center text-xs text-muted">If more are due than fit, the round is a random pick of them.</p>
-        </div>
+        <UButton
+          :label="`Start round of ${roundSize} ${roundSize === 1 ? 'card' : 'cards'}`"
+          trailing-icon="i-lucide-arrow-right"
+          block
+          :loading="busy"
+          @click="start"
+        />
       </UCard>
       <UCard v-else>
         <UEmpty
@@ -333,6 +338,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               v-model="typed"
               :placeholder="question"
               :aria-label="question"
+              :maxlength="maxAnswerLength"
               autocomplete="off"
               autocapitalize="off"
               :spellcheck="false"
@@ -408,8 +414,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :disabled="busy"
             @click="rate('again')"
           >
-            <span class="font-semibold">Continue</span>
-            <span class="text-xs font-normal opacity-85">recorded as Again</span>
+            <span class="font-semibold">Incorrect</span>
+            <span class="text-xs font-normal opacity-85">{{ formatInterval(card.intervals.again) }}</span>
           </UButton>
           <RatingButtons
             v-else

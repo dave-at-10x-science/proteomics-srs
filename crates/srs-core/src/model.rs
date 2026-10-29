@@ -31,6 +31,10 @@ pub struct FieldDef {
     pub unit: Option<String>,
     #[serde(default)]
     pub optional: bool,
+    /// Longest allowed value in characters, e.g. 3 for a three-letter code. The answer box stops
+    /// there too, so the expected form is obvious.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_length: Option<usize>,
     /// For derived images: the field this one is rendered from (e.g. `smiles`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,

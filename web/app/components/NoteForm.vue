@@ -108,6 +108,7 @@ function submit() {
         :type="f.type === 'number' ? 'number' : 'text'"
         :step="f.type === 'number' ? 'any' : undefined"
         :inputmode="f.type === 'number' ? 'decimal' : undefined"
+        :maxlength="f.max_length"
         :autocapitalize="f.type === 'smiles' ? 'off' : undefined"
         :spellcheck="f.type === 'smiles' ? false : undefined"
         :ui="f.type === 'smiles' ? { base: 'font-mono' } : undefined"

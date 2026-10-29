@@ -235,6 +235,18 @@ pub async fn ensure_cards(
         .execute(&mut *db)
         .await?;
     }
+    // A template dropped from the note type takes its cards, and their schedule, with it.
+    let existing: Vec<String> = sqlx::query_scalar("SELECT template_id FROM cards WHERE note_id = ?")
+        .bind(note_id)
+        .fetch_all(&mut *db)
+        .await?;
+    for template_id in existing.iter().filter(|id| note_type.template(id).is_none()) {
+        sqlx::query("DELETE FROM cards WHERE note_id = ? AND template_id = ?")
+            .bind(note_id)
+            .bind(template_id)
+            .execute(&mut *db)
+            .await?;
+    }
     Ok(())
 }
 

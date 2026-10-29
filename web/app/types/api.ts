@@ -12,6 +12,7 @@ export interface FieldDef {
   type: FieldType;
   unit?: string;
   optional?: boolean;
+  max_length?: number;
   from?: string;
   depiction_template?: string;
 }

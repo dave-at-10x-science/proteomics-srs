@@ -8,6 +8,7 @@ use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
+use srs_core::content::SetFile;
 use srs_server::claude::Claude;
 use srs_server::{AppState, app, open_db, seed};
 use tower::ServiceExt;
@@ -110,7 +111,28 @@ async fn default_set_is_imported_and_subscribed() {
     assert_eq!(sets[0]["id"], "amino-acids-20");
     assert_eq!(sets[0]["subscribed"], true);
     assert_eq!(sets[0]["note_count"], 20);
-    assert_eq!(sets[0]["card_count"], 140);
+    assert_eq!(sets[0]["card_count"], 120);
+}
+
+#[tokio::test]
+async fn cards_of_removed_templates_are_deleted_on_import() {
+    let t = TestApp::new().await;
+    t.study(1).await;
+    let card = t.get("/api/review/next").await["card"].clone();
+    t.rate(&card, "good").await;
+
+    let mut file = SetFile::from_yaml(include_str!("../../../seed/amino-acids/amino-acids.yaml")).unwrap();
+    let removed = card["template_id"].as_str().unwrap().to_string();
+    file.note_type.templates.retain(|tpl| tpl.id != removed);
+    seed::import_set(&t.pool, &file).await.unwrap();
+
+    assert_eq!(t.get("/api/sets").await[0]["card_count"], 100);
+    let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM card_state WHERE template_id = ?")
+        .bind(&removed)
+        .fetch_one(&t.pool)
+        .await
+        .unwrap();
+    assert_eq!(left, 0, "the removed card's schedule goes with it");
 }
 
 #[tokio::test]
@@ -134,10 +156,10 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
-    // 20 amino acids x 8 templates, 24 terms x 2, 14 PTMs x 5, 9 monosaccharides x 5,
+    // 20 amino acids x 6 templates, 24 terms x 2, 14 PTMs x 5, 9 monosaccharides x 5,
     // 22 glycan concepts x 2.
     assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 89);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 367);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 327);
     assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 89);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
@@ -173,12 +195,12 @@ async fn cards_enter_review_only_once_their_note_is_studied() {
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 
-    // Every enabled card of both notes is now due: 2 notes x 7 cards, all answer types at once.
+    // Every enabled card of both notes is now due: 2 notes x 6 cards, all answer types at once.
     let round = t.get("/api/review/round?size=50").await;
-    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 14 }));
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 12 }));
     assert_eq!(round["unstudied"], 18);
     let cards = round["cards"].as_array().unwrap();
-    assert_eq!(cards.len(), 14);
+    assert_eq!(cards.len(), 12);
     assert!(
         cards
             .iter()
@@ -318,7 +340,7 @@ async fn notes_can_be_added_to_a_new_set() {
         .find(|s| s["id"] == "proteases")
         .unwrap();
     assert_eq!(proteases["note_count"], 1);
-    assert_eq!(proteases["card_count"], 7);
+    assert_eq!(proteases["card_count"], 6);
 
     let (status, _) = t
         .call("DELETE", "/api/notes/aminoacid-selenocysteine", None)
@@ -462,12 +484,15 @@ async fn memory_game_uses_only_introduced_notes_and_never_touches_the_schedule()
     assert!(note["smiles"].is_string() && note["name"].is_string());
     assert!(note.get("pI").is_none(), "only the fields tiles need are sent");
 
-    // Side-chain class repeats across amino acids, and values must be unique per side or matches
-    // would be ambiguous. The first ten amino acids span only two classes, so that board is refused.
+    // Values must be unique per side, or matches would be ambiguous. Glucose, mannose and
+    // galactose are all Hex and GlcNAc and GalNAc are both HexNAc, so these five give two pairs.
+    let five = ["mono-glc", "mono-man", "mono-gal", "mono-glcnac", "mono-galnac"];
+    let (status, v) = t.post("/api/study/studied", json!({ "note_ids": five })).await;
+    assert_eq!(status, StatusCode::OK, "{v}");
     let (status, err) = t
         .call(
             "GET",
-            "/api/game/board?set=amino-acids-20&a=structure&b=side_chain_class",
+            "/api/game/board?set=monosaccharides&a=name&b=shorthand",
             None,
         )
         .await;
@@ -677,7 +702,7 @@ async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
     let t = TestApp::new().await;
     t.study(2).await;
     let round = t.get("/api/review/round?size=4").await;
-    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 14 }));
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 12 }));
     let cards = round["cards"].as_array().unwrap().clone();
     assert_eq!(cards.len(), 4);
 
@@ -695,9 +720,9 @@ async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
 
     // The next round can pick up the failed card (learn-ahead) and the rest still unreviewed.
     let round = t.get("/api/review/round?size=50").await;
-    assert_eq!(round["counts"], json!({ "learning": 1, "review": 0, "new": 10 }));
+    assert_eq!(round["counts"], json!({ "learning": 1, "review": 0, "new": 8 }));
     let next = round["cards"].as_array().unwrap();
-    assert_eq!(next.len(), 11);
+    assert_eq!(next.len(), 9);
     assert!(next.contains(&cards[0]));
 
     let (status, _) = t.call("GET", "/api/review/round?size=0", None).await;

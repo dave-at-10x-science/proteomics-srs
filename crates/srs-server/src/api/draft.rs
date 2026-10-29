@@ -261,6 +261,9 @@ fn describe(f: &FieldDef) -> Option<String> {
     if let Some(unit) = &f.unit {
         parts.push(format!("in {unit}"));
     }
+    if let Some(max) = f.max_length {
+        parts.push(format!("at most {max} characters"));
+    }
     (!parts.is_empty()).then(|| parts.join(". "))
 }
 

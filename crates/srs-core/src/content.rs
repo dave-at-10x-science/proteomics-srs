@@ -23,7 +23,7 @@ pub enum ContentError {
 }
 
 /// Problems with one note against its note type: unknown fields, missing required fields, and
-/// values of the wrong kind.
+/// values of the wrong kind or too long.
 pub fn validate_note(note_type: &NoteType, note: &Note) -> Vec<String> {
     let mut errors = Vec::new();
     if note.id.trim().is_empty() {
@@ -51,6 +51,14 @@ pub fn validate_note(note_type: &NoteType, note: &Note) -> Vec<String> {
                 errors.push(format!("note `{}` field `{}` must be text", note.id, f.name))
             }
             _ => {}
+        }
+        if let (Some(max), Some(s)) = (f.max_length, note.get(&f.name).and_then(|v| v.as_str()))
+            && s.chars().count() > max
+        {
+            errors.push(format!(
+                "note `{}` field `{}` is over the {max}-character limit",
+                note.id, f.name
+            ));
         }
     }
     errors
@@ -156,7 +164,7 @@ mod tests {
 
         let cards = file.cards();
         assert_eq!(cards.len(), 20 * file.note_type.templates.len());
-        assert_eq!(cards.iter().filter(|c| c.enabled).count(), 140);
+        assert_eq!(cards.iter().filter(|c| c.enabled).count(), 120);
     }
 
     #[test]
@@ -196,12 +204,13 @@ note_type:
   fields:
     - {name: name, type: text}
     - {name: mass, type: number}
+    - {name: code, type: text, optional: true, max_length: 1}
   templates:
     - {id: a, prompt: [name], answer: [nope], mode: typed}
 notes:
   - {id: n1, name: X, mass: "heavy"}
   - {id: n1, name: Y, mass: 1.0, extra: 2}
-  - {id: n2, mass: 2.0}
+  - {id: n2, mass: 2.0, code: AB}
 "#;
         let ContentError::Invalid(errors) = SetFile::from_yaml(src).unwrap_err() else {
             panic!("expected validation errors");
@@ -211,6 +220,10 @@ notes:
         assert!(joined.contains("`n1` is declared twice"), "{joined}");
         assert!(joined.contains("`mass` must be a number"), "{joined}");
         assert!(joined.contains("unknown field `extra`"), "{joined}");
+        assert!(
+            joined.contains("`code` is over the 1-character limit"),
+            "{joined}"
+        );
         assert!(
             joined.contains("`n2` is missing required field `name`"),
             "{joined}"

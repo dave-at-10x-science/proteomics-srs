@@ -2,7 +2,7 @@
 //!
 //! Import runs on every start and is idempotent:
 //! - note types and sets are updated from the file (the file owns the schema), so new templates
-//!   appear as new cards;
+//!   appear as new cards and removed templates' cards are deleted;
 //! - notes are only inserted if missing, so edits made in the app are never overwritten;
 //! - new users are subscribed to default sets.
 

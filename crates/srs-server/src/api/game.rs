@@ -318,8 +318,6 @@ mod tests {
                 ("structure", "one_letter"),
                 ("one_letter", "name"),
                 ("three_letter", "name"),
-                ("structure", "side_chain_class"),
-                ("name", "residue_mass_mono"),
             ]
         );
         assert_eq!(p[0].label, "Structure ↔ Name");
