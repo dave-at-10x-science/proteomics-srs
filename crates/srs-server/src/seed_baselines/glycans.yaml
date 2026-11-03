@@ -1,0 +1,158 @@
+# N- and O-glycosylation: how glycans attach to proteins, their main types, and how they are
+# released and recognised in mass spectrometry. Masses are monoisotopic.
+
+set:
+  id: glycans
+  name: "Glycans: N- and O-glycosylation"
+  default: false
+  tags: [glycans, glycoproteomics, mass-spectrometry]
+
+note_type:
+  id: GlycoConcept
+  fields:
+    - {name: term, label: Term, type: text}
+    - {name: kind, label: Topic, type: text}
+    - {name: definition, label: What it is, type: markdown}
+    - {name: detail, label: Detail, type: markdown, optional: true}
+  templates:
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: multiple_choice
+
+notes:
+  - id: gly-n-glycosylation
+    term: N-glycosylation
+    kind: N-glycans
+    definition: "A glycan attached to the side-chain amide nitrogen of asparagine."
+    detail: "Happens at the sequon N-X-S/T, where X is any amino acid except proline. A 14-sugar precursor is transferred in the ER by oligosaccharyltransferase, then trimmed and rebuilt in the ER and Golgi."
+
+  - id: gly-n-core
+    term: N-glycan core
+    kind: N-glycans
+    definition: "The trimannosyl core Man3GlcNAc2 that every N-glycan shares: two GlcNAcs on the Asn, then three mannoses."
+    detail: "Composition HexNAc(2)Hex(3), 892.317 Da as residues. The two core mannoses branch α1-3 and α1-6, and the antennae grow from them."
+
+  - id: gly-high-mannose
+    term: High-mannose N-glycan
+    kind: N-glycans
+    definition: "An N-glycan with only mannose beyond the core: Man5 to Man9 GlcNAc2."
+    detail: "Composition HexNAc(2)Hex(5–9). Typical of glycoproteins that haven't been fully processed in the Golgi. Sensitive to Endo H."
+
+  - id: gly-complex
+    term: Complex N-glycan
+    kind: N-glycans
+    definition: "An N-glycan whose antennae start with GlcNAc on both core mannoses and are extended with galactose and often sialic acid."
+    detail: "Can be bi-, tri- or tetra-antennary, and often carries core fucose. A common serum glycan is HexNAc(4)Hex(5)NeuAc(2): biantennary, galactosylated and disialylated. Resistant to Endo H."
+
+  - id: gly-hybrid
+    term: Hybrid N-glycan
+    kind: N-glycans
+    definition: "An N-glycan with mannoses on the α1-6 arm (like high-mannose) and a GlcNAc-started antenna on the α1-3 arm (like complex)."
+    detail: "An intermediate of Golgi processing. Sensitive to Endo H."
+
+  - id: gly-core-fucose
+    term: Core fucosylation
+    kind: N-glycans
+    definition: "A fucose α1-6 linked to the innermost (Asn-linked) GlcNAc of an N-glycan."
+    detail: "Added by FUT8. Adds 146.058 Da. Removing core fucose from IgG1 antibodies strongly boosts their ADCC activity."
+
+  - id: gly-pngase-f
+    term: PNGase F
+    kind: Methods
+    definition: "An amidase that releases intact N-glycans from glycoproteins."
+    detail: "It converts the glycosylated Asn into Asp (+0.984 Da), marking former N-glycosylation sites; done in H2¹⁸O the shift becomes +2.988 Da, so it can't be confused with spontaneous deamidation. It can't release N-glycans with core α1-3 fucose (plant and insect glycans)."
+
+  - id: gly-endo-h
+    term: Endo H
+    kind: Methods
+    definition: "An endoglycosidase that cuts between the two core GlcNAcs of high-mannose and hybrid N-glycans, leaving one GlcNAc on the Asn."
+    detail: "Complex N-glycans are resistant, so Endo H sensitivity shows whether a glycoprotein has passed through the medial Golgi. The leftover GlcNAc adds 203.079 Da to the peptide."
+
+  - id: gly-o-galnac
+    term: Mucin-type O-glycosylation
+    kind: O-glycans
+    definition: "A glycan built on GalNAc α-linked to the hydroxyl of serine or threonine."
+    detail: "There is no consensus sequon; sites cluster in Ser/Thr/Pro-rich regions such as mucin domains. Started in the Golgi by a family of about 20 polypeptide GalNAc-transferases."
+
+  - id: gly-tn
+    term: Tn antigen
+    kind: O-glycans
+    definition: "A single GalNAc on Ser or Thr: the unextended start of a mucin-type O-glycan."
+    detail: "Sialyl-Tn (NeuAcα2-6GalNAc) and Tn are tumour-associated antigens: cancer cells often fail to extend their O-glycans."
+
+  - id: gly-core1
+    term: O-glycan core 1 (T antigen)
+    kind: O-glycans
+    definition: "Galβ1-3GalNAcα-Ser/Thr, the most common O-glycan core."
+    detail: "Composition HexNAc(1)Hex(1). Often capped with one or two sialic acids, e.g. disialyl core 1 HexNAc(1)Hex(1)NeuAc(2)."
+
+  - id: gly-core2
+    term: O-glycan core 2
+    kind: O-glycans
+    definition: "Core 1 with a GlcNAc added β1-6 to the GalNAc: Galβ1-3(GlcNAcβ1-6)GalNAcα-Ser/Thr."
+    detail: "The branching GlcNAc can be extended into longer chains. Common on leukocytes."
+
+  - id: gly-core3
+    term: O-glycan core 3
+    kind: O-glycans
+    definition: "GlcNAcβ1-3GalNAcα-Ser/Thr."
+    detail: "Found mainly in the gut (colonic mucins). Adding a β1-6 GlcNAc to it makes core 4."
+
+  - id: gly-o-glcnac
+    term: O-GlcNAc
+    kind: O-glycans
+    definition: "A single β-GlcNAc on Ser or Thr of nuclear and cytoplasmic proteins, never extended."
+    detail: "Dynamic like phosphorylation: added by OGT, removed by OGA, often at the same or nearby sites. Adds 203.079 Da and falls off easily in CID/HCD (oxonium ion at m/z 204.087), so ETD is used to localise it."
+
+  - id: gly-o-release
+    term: O-glycan release
+    kind: Methods
+    definition: "Freeing O-glycans for analysis, usually by reductive β-elimination, since no enzyme releases them all as PNGase F does for N-glycans."
+    detail: "Alkaline borohydride releases O-glycans as alditols (reduced, so they don't peel). O-glycoproteases such as OpeRATOR instead cut the protein next to O-glycosylated Ser/Thr, for site mapping."
+
+  - id: gly-oxonium
+    term: Oxonium ions
+    kind: Mass spectrometry
+    definition: "Small charged glycan fragments in the low m/z range of HCD spectra that flag a glycopeptide."
+    detail: "HexNAc 204.087 (and 186.076, 168.066, 144.065, 138.055), Hex 163.060, HexHexNAc 366.140, NeuAc 292.103 and 274.092. The ratio of the 138 and 144 ions helps tell GlcNAc from GalNAc."
+
+  - id: gly-y-ions
+    term: Y ions (glycopeptides)
+    kind: Mass spectrometry
+    definition: "Fragments made of the intact peptide still carrying part of the glycan, from cleavage of glycosidic bonds."
+    detail: "Peptide + HexNAc (Y1) is characteristic of N-glycopeptides. A ladder of Y ions reads the glycan composition from the peptide outward."
+
+  - id: gly-ethcd
+    term: EThcD for glycopeptides
+    kind: Mass spectrometry
+    definition: "Electron-transfer dissociation with supplemental collision energy: breaks the peptide backbone but leaves the glycan on its residue."
+    detail: "HCD tells you a glycan is there (oxonium and Y ions); ETD/EThcD c and z ions tell you which Ser/Thr/Asn carries it. Essential for O-glycan sites, which have no sequon."
+
+  - id: gly-heterogeneity
+    term: Micro- and macroheterogeneity
+    kind: Glycoproteomics
+    definition: "Microheterogeneity: different glycans at the same site. Macroheterogeneity: whether a site is occupied at all."
+    detail: "One N-glycosylation site can carry dozens of glycoforms, which splits a peptide's signal across many precursors and makes glycopeptides hard to detect without enrichment."
+
+  - id: gly-enrichment
+    term: Glycopeptide enrichment
+    kind: Glycoproteomics
+    definition: "Pulling glycopeptides out of a digest before MS, because they are a small and poorly ionising fraction."
+    detail: "HILIC (hydrophilic interaction) captures glycopeptides broadly by their polar glycans; lectins are selective, e.g. concanavalin A for high-mannose N-glycans."
+
+  - id: gly-composition
+    term: Glycan composition notation
+    kind: Mass spectrometry
+    definition: "Writing a glycan by monosaccharide class counts, e.g. HexNAc(4)Hex(5)Fuc(1)NeuAc(2), because MS sees masses, not structures."
+    detail: "Isomers (Glc/Man/Gal, GlcNAc/GalNAc, α2-3 vs α2-6 sialic acid) have identical masses, so a composition can match several structures. Linkage-specific derivatisation can tell α2-3 from α2-6 sialic acids."
+
+  - id: gly-snfg
+    term: SNFG
+    kind: Glycoproteomics
+    definition: "Symbol Nomenclature for Glycans: the standard shapes and colours for drawing glycans."
+    detail: "Shape gives the class (circle hexose, square HexNAc, triangle deoxyhexose, diamond sialic acid, star pentose); colour gives the sugar (green mannose, yellow galactose, blue glucose)."

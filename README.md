@@ -3,7 +3,8 @@
 spectrometry.
 
 A daily study tool: a short queue of due cards on your phone, scheduled with FSRS, plus a
-matching-pairs memory game for practice. Structures are drawn from SMILES. See
+matching-pairs memory game for practice. Amino-acid structures are drawn from SMILES; other
+topics use local diagrams. See
 [docs/design-proposal.md](docs/design-proposal.md) for the current design and roadmap.
 
 The current app runs locally for one learner, with authoring available to that user. Next are
@@ -19,8 +20,8 @@ crates/srs-core/   Scheduling (FSRS), daily queue, content model, answer checkin
 crates/srs-server/ Local server: JSON API + serves the web app. SQLite in data/.
 web/               Nuxt SPA built with Nuxt UI, installable as a PWA. Structures drawn from SMILES
                    with RDKit.js.
-seed/              Starter sets as YAML: the 20 amino acids (default), MS/proteomics vocabulary,
-                   PTMs, monosaccharides, and N-/O-glycosylation.
+seed/              Eleven topic sets as YAML: amino acids (default), monosaccharides, PTMs,
+                   O-GalNAc motifs, glycosylation reference, and six MS/proteomics topics.
 tools/             Content helpers (SMILES validation and structure previews).
 docs/              Design notes.
 ```
@@ -75,6 +76,30 @@ are name → abbreviation, name → picture, and picture → name. NeuAc/NeuGc a
 Neu5Ac/Neu5Gc. Abbreviation cards belong only in note types where abbreviations are useful.
 The former mass and composition-class drills are disabled, with their schedules/history kept.
 
+The same picture-and-short-facts approach now covers PTMs, O-GalNAc motifs, and six MS topics.
+PTMs use representative before-and-after chemistry diagrams and common modification sites.
+The glycan motifs build on the learned SNFG symbols, with explicit linkages and Ser/Thr attachment.
+MS sets use schematics for spectra, instruments, acquisition, fragmentation, and workflow.
+Long glycosylation material remains available in Browse as **Glycosylation reference**.
+
+The bundled library starts with 93 notes and 273 active cards across 11 sets:
+
+| Content | Notes | Active cards |
+|---|---:|---:|
+| Standard amino acids | 20 | 140 |
+| Monosaccharides | 9 | 27 |
+| Post-translational modifications | 14 | 42 |
+| O-GalNAc glycan motifs | 6 | 12 |
+| Glycosylation reference (Browse only) | 18 | 0 |
+| Six MS/proteomics topics | 26 | 52 |
+
+The six MS topics are Reading mass spectra (4 notes), LC and ionization (4), Mass analyzers (3),
+MS scans and acquisition (5), Peptide fragmentation (4), and Proteomics workflow (6).
+
+Detailed diagrams get full-width answer choices on a phone. In the memory game, the magnifier
+on a revealed detailed picture opens a larger view without showing the answer's name.
+Optional pictures can be added after drafting; visual cards wait until their picture is present.
+
 **Start over** from Settings to forget all progress (studied notes, schedules, review history,
 game results) and begin as if for the first time. Sets, notes and settings are kept. Settings
 also picks the theme: light, dark, or the system's.
@@ -90,11 +115,19 @@ name, using only notes you've already studied. Results are kept for personal bes
 never changes your review schedule.
 
 Seed import runs on every start. Note types and sets are updated from the files, new notes are
-added, and notes you've edited in the app are left alone.
+added, and ordinary imports preserve existing note fields and status.
 
 A one-time migration refreshes the original monosaccharide seed fields in existing libraries.
 Each field changes only if it still matches its old seed value; authored replacements survive.
 No progress reset is needed. As with other migrations, it runs automatically at server startup.
+
+The PTM, MS, and glycan upgrades also apply once at startup, comparing each existing field with
+an immutable copy of the old seed. Original values are refreshed and missing new fields filled;
+authored replacements, status, timestamps, schedules, and logs survive. Existing glycan motif
+IDs move to the visual set, and subscriptions follow the reorganized topics once, preserving
+later opt-outs. Old seed drills are disabled in place; authored legacy drill cards are retained.
+An edited PTM SMILES keeps its existing example and context; its picture cards wait for an
+authored diagram rather than receiving a stock picture of different chemistry.
 
 | Variable | Default | |
 |---|---|---|
@@ -114,8 +147,9 @@ some terms, or paste text from a paper, and Claude drafts notes that fit the set
 (structured output against the note type's fields). Drafts land in the set marked `draft`:
 they are never studied until you open each one, fix what needs fixing, and publish it, or
 press **Publish all**. Anything that duplicates a note already in your library, or doesn't fit
-the note type, is skipped and listed. Newly published notes become available in Study; their
-cards enter Review after Study completion. The server validates field data, but automated
+the note type, is skipped and listed. Newly published notes with usable cards become available
+in Study; their cards enter Review after Study completion. Add optional diagrams by hand before
+their visual cards can be studied. The server validates field data, but automated
 scientific checks and a future integration with our own proteomics model are deferred.
 Requests opt into server-side fallbacks
 (`fallbacks: "default"`), so if the primary model declines a request the API can retry it on
@@ -163,3 +197,13 @@ Validate SMILES and regenerate structure previews after editing a set:
 pip install rdkit pyyaml
 python tools/render_structures.py seed/amino-acids/amino-acids.yaml
 ```
+
+Regenerate the bundled PTM connectivity diagrams with the native Rust tool:
+
+```sh
+cargo run -p srs-server --bin render_ptm_diagrams
+# Optional output directory:
+cargo run -p srs-server --bin render_ptm_diagrams -- /tmp/ptm-diagrams
+```
+
+The default output is `web/public/study/ptms/`. `cargo run -p srs-server` still starts the app.

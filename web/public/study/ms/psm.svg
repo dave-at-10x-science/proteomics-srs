@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <text x="97" y="30">Observed</text><text x="262" y="30">Candidate</text>
+    <text x="262" y="59" font-size="22">A–G–S–L–K</text>
+    <path d="M46 62V149H326M46 149V238" fill="none" stroke="#111827" stroke-width="3"/>
+    <g stroke="#9333ea" stroke-width="4"><path d="M87 149V112M129 149V83M179 149V108M233 149V67M286 149V117M87 149V186M129 149V215M179 149V190M233 149V231M286 149V181"/></g>
+    <g stroke="#111827" stroke-width="3"><path d="M67 149V131M111 149V125M152 149V136M261 149V126M309 149V136"/></g>
+    <text x="110" y="265">Predicted</text><text x="270" y="265">m/z →</text>
+    <text x="180" y="291" font-size="17">Compare fragment patterns</text>
+
+  </g>
+</svg>

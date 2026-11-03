@@ -126,6 +126,8 @@ pub async fn unstudied_notes(pool: &SqlitePool, user: i64) -> ApiResult<Vec<Stor
          JOIN set_notes sn ON sn.note_id = n.id
          JOIN subscriptions s ON s.set_id = sn.set_id AND s.user_id = ?1
          WHERE n.status = 'published'
+           AND EXISTS (SELECT 1 FROM cards c WHERE c.note_id = n.id
+                       AND c.enabled = 1 AND c.content_available = 1)
            AND NOT EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
          GROUP BY n.id
          ORDER BY MIN(sn.set_id), MIN(sn.position)",
@@ -223,15 +225,18 @@ pub async fn ensure_cards(
     note_type: &NoteType,
     note_id: &str,
 ) -> ApiResult<()> {
+    let stored = note(&mut *db, note_id).await?;
     for (i, t) in note_type.templates.iter().enumerate() {
         sqlx::query(
-            "INSERT INTO cards (note_id, template_id, position, enabled) VALUES (?, ?, ?, ?)
-             ON CONFLICT (note_id, template_id) DO UPDATE SET position = excluded.position",
+            "INSERT INTO cards (note_id, template_id, position, enabled, content_available) VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT (note_id, template_id) DO UPDATE SET position = excluded.position,
+                 content_available = excluded.content_available",
         )
         .bind(note_id)
         .bind(&t.id)
         .bind(i as i64)
         .bind(t.enabled_by_default)
+        .bind(t.has_content(note_type, &stored.note))
         .execute(&mut *db)
         .await?;
     }
@@ -276,7 +281,7 @@ pub async fn candidates(pool: &SqlitePool, user: i64, now: DateTime<Utc>) -> Api
          JOIN subscriptions s ON s.set_id = sn.set_id AND s.user_id = ?1
          LEFT JOIN card_state cs
              ON cs.user_id = ?1 AND cs.note_id = c.note_id AND cs.template_id = c.template_id
-         WHERE c.enabled = 1
+         WHERE c.enabled = 1 AND c.content_available = 1
          GROUP BY c.note_id, c.template_id
          ORDER BY MIN(sn.set_id), MIN(sn.position), c.position",
     )
@@ -340,7 +345,7 @@ pub async fn card_state(
 
 pub async fn card_exists(pool: &SqlitePool, id: &CardId) -> ApiResult<bool> {
     let n: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM cards WHERE note_id = ? AND template_id = ? AND enabled = 1",
+        "SELECT COUNT(*) FROM cards WHERE note_id = ? AND template_id = ? AND enabled = 1 AND content_available = 1",
     )
     .bind(&id.note_id)
     .bind(&id.template_id)

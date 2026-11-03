@@ -4,6 +4,7 @@ pub mod api;
 pub mod claude;
 pub mod error;
 pub mod seed;
+mod seed_refresh;
 pub mod store;
 
 use std::path::PathBuf;

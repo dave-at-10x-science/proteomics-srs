@@ -1,9 +1,9 @@
-# N- and O-glycosylation: how glycans attach to proteins, their main types, and how they are
-# released and recognised in mass spectrometry. Masses are monoisotopic.
+# Reference reading on glycosylation and glycan analysis; not scheduled recognition practice.
+# O-GalNAc motifs are introduced visually in seed/glycan-motifs/glycan-motifs.yaml.
 
 set:
   id: glycans
-  name: "Glycans: N- and O-glycosylation"
+  name: Glycosylation reference
   default: false
   tags: [glycans, glycoproteomics, mass-spectrometry]
 
@@ -19,10 +19,12 @@ note_type:
       prompt: [term]
       answer: [definition]
       mode: flip
+      enabled_by_default: false
     - id: definition-to-term
       prompt: [definition]
       answer: [term]
       mode: multiple_choice
+      enabled_by_default: false
 
 notes:
   - id: gly-n-glycosylation
@@ -78,30 +80,6 @@ notes:
     kind: O-glycans
     definition: "A glycan built on GalNAc α-linked to the hydroxyl of serine or threonine."
     detail: "There is no consensus sequon; sites cluster in Ser/Thr/Pro-rich regions such as mucin domains. Started in the Golgi by a family of about 20 polypeptide GalNAc-transferases."
-
-  - id: gly-tn
-    term: Tn antigen
-    kind: O-glycans
-    definition: "A single GalNAc on Ser or Thr: the unextended start of a mucin-type O-glycan."
-    detail: "Sialyl-Tn (NeuAcα2-6GalNAc) and Tn are tumour-associated antigens: cancer cells often fail to extend their O-glycans."
-
-  - id: gly-core1
-    term: O-glycan core 1 (T antigen)
-    kind: O-glycans
-    definition: "Galβ1-3GalNAcα-Ser/Thr, the most common O-glycan core."
-    detail: "Composition HexNAc(1)Hex(1). Often capped with one or two sialic acids, e.g. disialyl core 1 HexNAc(1)Hex(1)NeuAc(2)."
-
-  - id: gly-core2
-    term: O-glycan core 2
-    kind: O-glycans
-    definition: "Core 1 with a GlcNAc added β1-6 to the GalNAc: Galβ1-3(GlcNAcβ1-6)GalNAcα-Ser/Thr."
-    detail: "The branching GlcNAc can be extended into longer chains. Common on leukocytes."
-
-  - id: gly-core3
-    term: O-glycan core 3
-    kind: O-glycans
-    definition: "GlcNAcβ1-3GalNAcα-Ser/Thr."
-    detail: "Found mainly in the gut (colonic mucins). Adding a β1-6 GlcNAc to it makes core 4."
 
   - id: gly-o-glcnac
     term: O-GlcNAc

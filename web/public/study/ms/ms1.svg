@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <text x="180" y="29">Intact ions</text>
+    <g fill="#faf5ff" stroke="#111827" stroke-width="2"><circle cx="112" cy="65" r="12"/><circle cx="134" cy="65" r="12"/><circle cx="156" cy="65" r="12"/><circle cx="209" cy="65" r="12"/><circle cx="231" cy="65" r="12"/></g>
+    <g fill="#9333ea" font-size="21"><text x="171" y="72">+</text><text x="250" y="72">+</text></g>
+    <path d="M182 83V105" stroke="#9333ea" stroke-width="3" marker-end="url(#accent-arrow)"/>
+    <path d="M44 111V238H326" fill="none" stroke="#111827" stroke-width="3"/>
+    <path d="M83 238V203" stroke="#111827" stroke-width="4"/>
+    <path d="M130 238V144" stroke="#111827" stroke-width="4"/>
+    <path d="M137 238V167" stroke="#111827" stroke-width="4"/>
+    <path d="M144 238V207" stroke="#111827" stroke-width="4"/>
+    <path d="M197 238V185" stroke="#111827" stroke-width="4"/>
+    <path d="M240 238V128" stroke="#111827" stroke-width="4"/>
+    <path d="M248 238V172" stroke="#111827" stroke-width="4"/>
+    <path d="M256 238V213" stroke="#111827" stroke-width="4"/>
+    <path d="M294 238V197" stroke="#111827" stroke-width="4"/>
+    <text x="185" y="282">m/z</text><text transform="translate(20 178) rotate(-90)">Signal</text>
+  </g>
+</svg>

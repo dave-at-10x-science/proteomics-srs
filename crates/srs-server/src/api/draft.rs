@@ -343,7 +343,15 @@ mod tests {
         assert_eq!(item["additionalProperties"], false);
         assert_eq!(
             item["required"],
-            json!(["term", "definition", "technical", "example"])
+            json!([
+                "term",
+                "short_form",
+                "definition",
+                "function",
+                "key_fact",
+                "technical",
+                "example"
+            ])
         );
         assert_eq!(item["properties"]["term"]["type"], "string");
         assert_eq!(item["properties"]["technical"]["type"], json!(["string", "null"]));

@@ -1,0 +1,78 @@
+# Beginner visual concepts. Diagrams are original schematics, not to scale.
+# Primary references:
+# https://www.ssi.shimadzu.com/service-support/faq/maldi/maldi-basics/index.html
+# https://pubmed.ncbi.nlm.nih.gov/6525415/
+# https://docs.thermofisher.com/r/Stellar-Method-Editor-Help/1994607755v2en-US2024683403
+# https://pubmed.ncbi.nlm.nih.gov/17721543/
+set:
+  id: ms-fragmentation
+  name: Peptide fragmentation
+  default: false
+  tags: [mass-spectrometry, proteomics, fragmentation]
+
+note_type:
+  id: Term
+  fields:
+    - {name: term, label: Name, type: text}
+    - {name: image, label: Diagram, type: image, optional: true, detailed: true}
+    - {name: short_form, label: Symbol or abbreviation, type: text, optional: true}
+    - {name: definition, label: What it is, type: markdown}
+    - {name: function, label: What it does, type: text, optional: true}
+    - {name: key_fact, label: Key fact, type: text, optional: true}
+    - {name: technical, label: Technical definition, type: markdown, optional: true}
+    - {name: example, label: Example, type: markdown, optional: true}
+  templates:
+    # Keep these identities for history; new practice uses the visual directions below.
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+      enabled_by_default: false
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: typed
+      enabled_by_default: false
+    - id: image-to-term
+      prompt: [image]
+      answer: [term]
+      mode: multiple_choice
+      enabled_by_default: true
+    - id: term-to-image
+      prompt: [term]
+      answer: [image]
+      mode: multiple_choice
+      enabled_by_default: true
+
+notes:
+  # This existing identity now focuses on the N-terminal member of the former b/y note.
+  - id: term-by-ions
+    term: b ions
+    image: /study/ms/by-ions.svg
+    definition: "Peptide-bond fragments that retain the peptide's N-terminus and a charge."
+    function: Read the N-terminal sequence
+    key_fact: The subscript counts retained residues.
+
+  - id: term-y-ions
+    term: y ions
+    image: /study/ms/y-ions.svg
+    definition: "Peptide-bond fragments that retain the peptide's C-terminus and a charge."
+    function: Read the C-terminal sequence
+    key_fact: The subscript counts retained residues.
+
+  # Scope CID to its ion-trap form so the HCD diagram has one unambiguous answer.
+  - id: term-cid-hcd
+    term: Ion-trap CID
+    image: /study/ms/cid-hcd.svg
+    short_form: CID
+    definition: "Collision-induced dissociation in which stored ions are excited to collide with gas."
+    function: Break ions into fragments
+    key_fact: Other CID implementations also exist.
+
+  - id: term-hcd
+    term: Higher-energy collisional dissociation
+    image: /study/ms/hcd.svg
+    short_form: HCD
+    definition: "Beam-type collisional fragmentation in a gas-filled cell."
+    function: Produce peptide fragments
+    key_fact: A collision-induced dissociation method.

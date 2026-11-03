@@ -350,7 +350,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <UBadge :label="question" color="primary" variant="soft" size="xl" class="rounded-full px-4" />
         </div>
 
-        <div v-if="mode === 'multiple_choice'" class="grid grid-cols-2 gap-2">
+        <div
+          v-if="mode === 'multiple_choice'"
+          class="grid gap-2"
+          :class="choiceField?.detailed || promptFields.some(f => f.detailed) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'"
+        >
           <UButton
             v-for="(c, index) in card.choices"
             :key="c"
@@ -384,7 +388,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                 {{ revealed && c === correctChoice ? 'Correct' : revealed && c === picked ? 'Incorrect' : `Option ${index + 1}` }}
               </span>
             </template>
-            <template v-else>{{ c }}</template>
+            <span v-else class="min-w-0 whitespace-normal wrap-anywhere hyphens-auto">{{ c }}</span>
           </UButton>
         </div>
 

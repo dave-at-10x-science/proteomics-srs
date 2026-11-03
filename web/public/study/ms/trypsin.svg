@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <path d="M40 85H320" stroke="#111827" stroke-width="4"/>
+    <g fill="white" stroke="#111827" stroke-width="2"><circle cx="40" cy="85" r="21"/><circle cx="96" cy="85" r="21"/><circle cx="152" cy="85" r="21"/><circle cx="208" cy="85" r="21"/><circle cx="264" cy="85" r="21"/><circle cx="320" cy="85" r="21"/></g>
+    <g font-size="24"><text x="40" y="93">A</text><text x="152" y="93">G</text><text x="208" y="93">S</text><text x="320" y="93">A</text></g>
+    <g fill="#9333ea" font-size="24" font-weight="bold"><text x="96" y="93">K</text><text x="264" y="93">R</text></g>
+    <path d="M180 138V176" stroke="#111827" stroke-width="3" marker-end="url(#arrow)"/>
+
+    <path d="M124 47V122M292 47V122" stroke="#9333ea" stroke-width="3" stroke-dasharray="6 4"/>
+    <text x="180" y="28">Cuts after K or R</text>
+    <g fill="#faf5ff" stroke="#9333ea" stroke-width="3"><rect x="25" y="192" width="77" height="57" rx="10"/><rect x="121" y="192" width="127" height="57" rx="10"/><rect x="269" y="192" width="61" height="57" rx="10"/></g>
+    <g font-size="25"><text x="64" y="228">A–K</text><text x="185" y="228">G–S–R</text><text x="299" y="228">A</text></g>
+    <text x="180" y="284">Peptide products</text>
+
+  </g>
+</svg>

@@ -1,0 +1,66 @@
+# Beginner visual concepts. Diagrams are original schematics, not to scale.
+# Primary references:
+# https://www.shimadzu.com.sg/an/service-support/technical-support/analysis-basics/lcms-intro/61intro.html
+# https://pubmed.ncbi.nlm.nih.gov/10740853/
+set:
+  id: ms-analyzers
+  name: Mass analyzers
+  default: false
+  tags: [mass-spectrometry, proteomics, analyzers]
+
+note_type:
+  id: Term
+  fields:
+    - {name: term, label: Name, type: text}
+    - {name: image, label: Diagram, type: image, optional: true, detailed: true}
+    - {name: short_form, label: Symbol or abbreviation, type: text, optional: true}
+    - {name: definition, label: What it is, type: markdown}
+    - {name: function, label: What it does, type: text, optional: true}
+    - {name: key_fact, label: Key fact, type: text, optional: true}
+    - {name: technical, label: Technical definition, type: markdown, optional: true}
+    - {name: example, label: Example, type: markdown, optional: true}
+  templates:
+    # Keep these identities for history; new practice uses the visual directions below.
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+      enabled_by_default: false
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: typed
+      enabled_by_default: false
+    - id: image-to-term
+      prompt: [image]
+      answer: [term]
+      mode: multiple_choice
+      enabled_by_default: true
+    - id: term-to-image
+      prompt: [term]
+      answer: [image]
+      mode: multiple_choice
+      enabled_by_default: true
+
+notes:
+  - id: term-quadrupole
+    term: Quadrupole
+    image: /study/ms/quadrupole.svg
+    definition: "Use electric fields between four rods to transmit a selected m/z range."
+    function: Filter ions by m/z
+    key_fact: Constant + oscillating voltages
+
+  - id: term-tof
+    term: Time-of-flight analyzer
+    image: /study/ms/tof.svg
+    short_form: TOF
+    definition: "Infer m/z from the time ions take to reach a detector."
+    function: Measure ion flight time
+    key_fact: "Same voltage: lower m/z arrives first."
+
+  - id: term-orbitrap
+    term: Orbitrap
+    image: /study/ms/orbitrap.svg
+    definition: "Infer m/z from ions oscillating along a central electrode while orbiting it."
+    function: Measure ion oscillation frequency
+    key_fact: Axial oscillation frequency reports m/z.

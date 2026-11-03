@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <text x="180" y="28" font-size="18">Most abundant isotopes</text>
+    <g fill="#faf5ff" stroke="#9333ea" stroke-width="3"><circle cx="70" cy="75" r="30"/><circle cx="145" cy="75" r="30"/><circle cx="220" cy="75" r="30"/><circle cx="295" cy="75" r="30"/></g>
+    <g font-size="24"><text x="70" y="83">¹²C</text><text x="145" y="83">¹H</text><text x="220" y="83">¹⁴N</text><text x="295" y="83">¹⁶O</text></g>
+    <path d="M180 112V147" stroke="#9333ea" stroke-width="4" marker-end="url(#accent-arrow)"/>
+    <rect x="55" y="157" width="250" height="70" rx="12" fill="#faf5ff" stroke="#9333ea" stroke-width="3"/>
+    <text x="180" y="187" font-size="22">Add their exact masses</text><text x="180" y="211" font-size="17">using the molecular formula</text>
+    <text x="180" y="271" font-size="20">One defined isotope composition</text>
+  </g>
+</svg>

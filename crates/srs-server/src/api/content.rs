@@ -67,7 +67,7 @@ pub async fn list_sets(State(state): State<AppState>) -> ApiResult<Json<Vec<SetS
                 EXISTS (SELECT 1 FROM subscriptions WHERE user_id = ?1 AND set_id = s.id) AS subscribed,
                 (SELECT COUNT(*) FROM set_notes sn WHERE sn.set_id = s.id) AS note_count,
                 (SELECT COUNT(*) FROM set_notes sn JOIN cards c ON c.note_id = sn.note_id
-                 WHERE sn.set_id = s.id AND c.enabled = 1) AS card_count
+                 WHERE sn.set_id = s.id AND c.enabled = 1 AND c.content_available = 1) AS card_count
          FROM sets s ORDER BY s.is_default DESC, s.name",
     )
     .bind(LOCAL_USER)

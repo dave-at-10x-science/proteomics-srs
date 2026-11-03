@@ -13,6 +13,11 @@ is a local, single-user spaced repetition app for proteomics and mass spectromet
 scheduled with FSRS. New notes are read in **Study**, then their cards enter **Review** rounds.
 A memory game and Browse mode never touch the schedule. Optional AI drafting calls the Claude API.
 
+The starter library has 11 sets, 93 unique notes and 273 active cards (433 stored card rows,
+including disabled directions). PTMs use before-and-after diagrams, six MS topics use concept
+schematics, and six O-GalNAc motifs use SNFG pictures. The 18-note glycosylation reference is
+Browse-only. Counts describe a fresh import; authored notes and retained drills can add more.
+
 Next priorities are multiple users with independent progress and fuller content authoring.
 Most accounts will have the `learner` role; `content-author` will add access to content tools.
 Roles and authentication are not implemented yet. Learners can have any background. Automated
@@ -24,9 +29,10 @@ may use our own proteomics model.
 | Path | What lives there |
 |---|---|
 | `crates/srs-core/` | Pure logic, no I/O, must build for `wasm32-unknown-unknown`: content model and set-file validation (`model.rs`, `content.rs`), FSRS wrapper (`scheduler.rs`), queue and rounds (`queue.rs`), typed-answer checking (`answer.rs`). |
-| `crates/srs-server/src/` | `lib.rs` (`AppState`, DB setup, router), `main.rs` (config from env), `seed.rs` (YAML import), `store.rs` (all SQL), `api/` (one module per area), `claude.rs` (hand-written Messages API client), `error.rs` (`ApiError` to HTTP status). |
+| `crates/srs-server/src/` | `lib.rs` (`AppState`, DB setup, router), `main.rs` (config from env), `seed.rs` (YAML import), `seed_refresh.rs` (guarded content upgrades), `seed_baselines/` (immutable originals), `store.rs` (shared storage queries), `api/` (one module per area), `claude.rs` (Messages API client), `error.rs` (`ApiError` to HTTP status). |
 | `crates/srs-server/migrations/` | Numbered SQLite migrations, embedded with `sqlx::migrate!`. |
-| `crates/srs-server/tests/api.rs` | End-to-end API tests. |
+| `crates/srs-server/tests/` | End-to-end API tests and isolated content-refresh/migration tests. |
+| `crates/srs-server/src/bin/render_ptm_diagrams.rs` | Native generator for the bundled PTM connectivity diagrams. |
 | `web/app/` | Nuxt 4 SPA (`ssr: false`, PWA) built with Nuxt UI. `pages/`, `components/`, `composables/useApi.ts` (every API call), `types/api.ts` (hand-mirrored server JSON), `assets/main.css` (Tailwind and Nuxt UI imports, brand palette, theme variables), `app.config.ts` (Nuxt UI colors and component defaults). |
 | `seed/<set>/<set>.yaml` | Starter sets: one YAML file per set, holding the set, its note type and its notes. |
 | `tools/render_structures.py` | Validates SMILES and masses in a set file and renders preview images. |
@@ -52,6 +58,10 @@ To run the app: build the web app once, then `cargo run -p srs-server` and open
 `http://localhost:8080`. For hot reload, also run `cd web && npm run dev` (port 3000, proxies
 `/api` to 8080).
 
+Regenerate PTM diagrams with `cargo run -p srs-server --bin render_ptm_diagrams -- [output-dir]`.
+Omit the directory to write `web/public/study/ptms/`. The crate's default binary remains the server.
+Use Rust for new processing and reusable content tools; the existing Python seed checker remains.
+
 ## Rules
 
 - **Always work on a branch.** Never commit directly to `main`. Before the first commit, create
@@ -70,16 +80,22 @@ To run the app: build the web app once, then `cargo run -p srs-server` and open
 
 - **Card identity is `(note_id, template_id)`.** Review history hangs off it. Renaming a note id
   or template id in a seed file orphans the history for those cards.
-- **Seed import runs on every start.** Note types and sets are overwritten from the YAML, new
-  notes are inserted, and existing notes are never updated (so edits made in the app survive).
-  Changing an existing note's fields in YAML won't change an existing database. The one-time
-  monosaccharide migration updates only fields matching their original seed values; keep any
-  future content refreshes equally explicit about preserving authored fields and progress.
+- **Seed import runs on every start.** Note types and sets are overwritten from the YAML; ordinary
+  imports insert missing notes and preserve existing fields/status. Explicit one-time upgrades
+  compare immutable originals in `seed_baselines/`, replace only unchanged fields, and fill new
+  fields once. Keep refresh receipts and baselines intact: authored replacements, timestamps,
+  status, schedules and logs must survive. Topic moves retain note/card IDs and inherit old
+  subscriptions once; later opt-outs stick. New YAML edits alone do not refresh existing notes.
+- **Unavailable content is separate from disabled cards.** `content_available` follows each
+  template's required prompt/answer values. An optional missing picture withholds visual cards;
+  adding it must not override `enabled` or remove history. Retired template IDs stay defined.
+  Seed-only retirement must preserve authored legacy drill cards.
 - **Adding a seed set:** `every_seed_set_is_valid` in `srs-core` checks it, CI runs
   `render_structures.py` on it, and `TestApp::build` in `tests/api.rs` asserts the number of
-  imported sets, so update that count. SMILES are the source of truth for structures; the SVG
+  imported sets, so update that count. SMILES are the source of truth for RDKit drawings; the SVG
   and PNG files under `seed/*/` are generated previews, so regenerate them rather than editing
-  them by hand.
+  them by hand. Bundled study illustrations live in `web/public/study/`; PTM SVGs come from
+  the Rust generator.
 - **API changes touch four places:** the handler and route (`api/`), `web/app/types/api.ts`,
   `web/app/composables/useApi.ts`, and the API table in the README.
 - **Time comes from `AppState::now()`,** not `Utc::now()`, in request handling. Tests run on a
@@ -126,6 +142,9 @@ The web app uses [Nuxt UI](https://ui.nuxt.com) v4 on Tailwind CSS v4. Don't inv
   theme files in `web/.nuxt/ui/<component>.ts` for slot names and default classes.
 - **Phone first.** Check new screens at 320px wide in light and dark mode. Controls default to
   size `xl` (44px tall).
+- **Detailed diagrams:** `FieldDef.detailed` selects one-column phone image choices and a
+  magnifier on revealed memory tiles. `DiagramPreview` shows only the diagram, with a generic
+  title. Hidden tiles must not expose a preview or identity; keep preview and flip buttons separate.
 - **Bundle assets locally.** No web fonts, CDNs or external runtime asset fetches. The PWA caches
   the interface and RDKit; API-backed learning sessions need the server. Full offline learning
   is deferred.

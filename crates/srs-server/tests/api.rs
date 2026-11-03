@@ -31,7 +31,7 @@ impl TestApp {
     async fn build(claude: Option<Claude>) -> Self {
         let pool = open_db("sqlite::memory:").await.unwrap();
         let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
-        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 5);
+        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 11);
         let now = Arc::new(Mutex::new(Utc.with_ymd_and_hms(2026, 10, 23, 12, 0, 0).unwrap()));
         let clock_now = now.clone();
         let media_dir = std::env::temp_dir().join(format!("srs-media-{}", std::process::id()));
@@ -156,11 +156,10 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
-    // 20 amino acids x 7 templates, 24 terms x 2, 14 PTMs x 5, 9 monosaccharides x 5,
-    // 22 glycan concepts x 2.
-    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 89);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 347);
-    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 89);
+    // Old directions remain as inactive records alongside the new visual cards.
+    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 93);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 433);
+    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 93);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
 }
@@ -346,12 +345,23 @@ async fn names_offer_four_distinct_illustrations_with_the_correct_structure() {
 #[tokio::test]
 async fn derived_picture_prompts_also_offer_distinct_text_distractors() {
     let t = TestApp::new().await;
+    let mut kind = srs_server::store::note_type(&t.pool, "AminoAcid").await.unwrap();
+    kind.templates
+        .iter_mut()
+        .find(|t| t.id == "structure-to-name")
+        .unwrap()
+        .mode = srs_core::model::AnswerMode::MultipleChoice;
+    sqlx::query("UPDATE note_types SET definition = ? WHERE id = 'AminoAcid'")
+        .bind(serde_json::to_string(&kind).unwrap())
+        .execute(&t.pool)
+        .await
+        .unwrap();
     let card = t
-        .get("/api/review/card?note_id=ptm-phospho&template_id=structure-to-name")
+        .get("/api/review/card?note_id=aa-ala&template_id=structure-to-name")
         .await;
     let choices = card["choices"].as_array().unwrap();
     assert_eq!(choices.len(), 4);
-    assert!(choices.contains(&json!("Phosphorylation")));
+    assert!(choices.contains(&json!("Alanine")));
 }
 
 #[tokio::test]
@@ -565,8 +575,8 @@ async fn vocabulary_set_is_imported_but_not_subscribed() {
         .find(|s| s["id"] == "ms-vocabulary")
         .unwrap();
     assert_eq!(vocab["subscribed"], false);
-    assert_eq!(vocab["note_count"], 24);
-    assert_eq!(vocab["card_count"], 48);
+    assert_eq!(vocab["note_count"], 4);
+    assert_eq!(vocab["card_count"], 8);
 }
 
 #[tokio::test]
@@ -745,9 +755,17 @@ async fn drafted_notes_wait_as_drafts_until_published() {
     let item = &body["output_config"]["format"]["schema"]["properties"]["notes"]["items"];
     assert_eq!(
         item["required"],
-        json!(["term", "definition", "technical", "example"])
+        json!([
+            "term",
+            "short_form",
+            "definition",
+            "function",
+            "key_fact",
+            "technical",
+            "example"
+        ])
     );
-    assert!(body["system"].as_str().unwrap().contains("Precursor ion"));
+    assert!(body["system"].as_str().unwrap().contains("Monoisotopic mass"));
     assert!(
         body["messages"][0]["content"]
             .as_str()
@@ -913,11 +931,12 @@ async fn distractors_never_share_the_prompt() {
         )
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
-    // Deamidation and citrullination have the same mass shift, so asking for the name from the
-    // mass must never offer the other one.
+    // Two authored notes using the same picture would both answer that prompt correctly.
+    sqlx::query("UPDATE notes SET fields = json_set(fields, '$.structure', (SELECT json_extract(fields, '$.structure') FROM notes WHERE id = 'ptm-deamidation')) WHERE id = 'ptm-citrullination'")
+        .execute(&t.pool).await.unwrap();
     for _ in 0..20 {
         let card = t
-            .get("/api/review/card?note_id=ptm-deamidation&template_id=mass-shift-to-name")
+            .get("/api/review/card?note_id=ptm-deamidation&template_id=structure-to-name")
             .await;
         let choices = card["choices"].as_array().unwrap();
         assert_eq!(choices.len(), 4);

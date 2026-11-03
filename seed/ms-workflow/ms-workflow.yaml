@@ -1,0 +1,91 @@
+# Beginner visual concepts. Diagrams are original schematics, not to scale.
+# Primary references:
+# https://pubmed.ncbi.nlm.nih.gov/11231557/
+# https://pubmed.ncbi.nlm.nih.gov/18067249/
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC2922680/
+# https://www.unimod.org/modifications_view.php?editid1=21
+set:
+  id: ms-workflow
+  name: Proteomics workflow
+  default: false
+  tags: [mass-spectrometry, proteomics, workflow]
+
+note_type:
+  id: Term
+  fields:
+    - {name: term, label: Name, type: text}
+    - {name: image, label: Diagram, type: image, optional: true, detailed: true}
+    - {name: short_form, label: Symbol or abbreviation, type: text, optional: true}
+    - {name: definition, label: What it is, type: markdown}
+    - {name: function, label: What it does, type: text, optional: true}
+    - {name: key_fact, label: Key fact, type: text, optional: true}
+    - {name: technical, label: Technical definition, type: markdown, optional: true}
+    - {name: example, label: Example, type: markdown, optional: true}
+  templates:
+    # Keep these identities for history; new practice uses the visual directions below.
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+      enabled_by_default: false
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: typed
+      enabled_by_default: false
+    - id: image-to-term
+      prompt: [image]
+      answer: [term]
+      mode: multiple_choice
+      enabled_by_default: true
+    - id: term-to-image
+      prompt: [term]
+      answer: [image]
+      mode: multiple_choice
+      enabled_by_default: true
+
+notes:
+  - id: term-bottom-up
+    term: Bottom-up proteomics
+    image: /study/ms/bottom-up.svg
+    definition: "Study proteins by digesting them and measuring their peptides."
+    function: Infer proteins from peptide evidence
+    key_fact: "Common route: digest, LC-MS/MS, match."
+
+  - id: term-trypsin
+    term: Trypsin
+    image: /study/ms/trypsin.svg
+    definition: "An enzyme used to digest proteins, usually cutting after lysine or arginine."
+    function: Cut proteins into peptides
+    key_fact: Recognizes K and R cleavage sites.
+
+  - id: term-missed-cleavage
+    term: Missed cleavage
+    image: /study/ms/missed-cleavage.svg
+    definition: "A potential enzyme cleavage site left uncut within a digestion product."
+    function: Describe incomplete digestion
+    key_fact: A tryptic peptide can retain K or R.
+
+  - id: term-ptm
+    term: Post-translational modification
+    image: /study/ms/ptm.svg
+    short_form: PTM
+    definition: "A covalent chemical change to a protein after translation."
+    function: Alter protein chemistry
+    key_fact: Phosphorylation adds a phosphate group.
+
+  - id: term-psm
+    term: Peptide-spectrum match
+    image: /study/ms/psm.svg
+    short_form: PSM
+    definition: "A scored assignment of an MS/MS spectrum to a candidate peptide sequence."
+    function: Link a spectrum to a peptide
+    key_fact: A match is a proposed assignment.
+
+  - id: term-fdr
+    term: False discovery rate
+    image: /study/ms/fdr.svg
+    short_form: FDR
+    definition: "Expected proportion of false findings among the reported identifications."
+    function: Assess an identification list
+    key_fact: Target-decoy searches can estimate it.

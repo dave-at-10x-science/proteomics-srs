@@ -15,6 +15,8 @@ export interface FieldDef {
   max_length?: number;
   from?: string;
   depiction_template?: string;
+  /** Detailed diagrams need larger answer choices and an enlarged memory-game view. */
+  detailed?: boolean;
 }
 
 export interface DepictionTemplate {

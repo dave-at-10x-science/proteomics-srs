@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="320" viewBox="0 0 360 320">
+  <title>O-linked glycan motif</title>
+  <!-- SNFG: https://www.ncbi.nlm.nih.gov/glycans/snfg.html -->
+  <!-- Linkages: https://www.ncbi.nlm.nih.gov/books/NBK579921/table/CSHLP5087CH10TB1/ -->
+  <rect width="360" height="320" fill="#fff" />
+  <path d="M55 70L170 205M55 205H244" fill="none" stroke="#000" stroke-width="4" />
+  <rect x="23" y="38" width="64" height="64" fill="#0072bc" stroke="#000" stroke-width="3" />
+  <rect x="23" y="173" width="64" height="64" fill="#0072bc" stroke="#000" stroke-width="3" />
+  <rect x="138" y="173" width="64" height="64" fill="#ffd400" stroke="#000" stroke-width="3" />
+  <g fill="#000" font-family="Georgia, Cambria, 'Times New Roman', Times, serif" text-anchor="middle">
+    <text x="165" y="120" font-size="30">β1-6</text>
+    <text x="112" y="163" font-size="30">β1-3</text>
+    <text x="224" y="187" font-size="34">α</text>
+    <text x="297" y="215" font-size="30">Ser/Thr</text>
+  </g>
+</svg>

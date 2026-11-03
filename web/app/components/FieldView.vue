@@ -58,7 +58,7 @@ const html = computed(() => (props.def.type === 'markdown' ? (marked.parse(Strin
       v-else
       :class="[
         large
-          ? 'text-center text-4xl font-bold tracking-tight text-highlighted'
+          ? 'text-center text-2xl sm:text-4xl font-bold tracking-tight text-highlighted wrap-break-word hyphens-auto'
           : compact
             ? 'text-base wrap-break-word hyphens-auto'
             : 'text-lg',

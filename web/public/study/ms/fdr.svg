@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <text x="180" y="38" font-size="21">Reported identifications</text>
+    <rect x="38" y="78" width="284" height="89" rx="8" fill="#e5e7eb" stroke="#111827" stroke-width="3"/>
+    <path d="M284 79H314Q321 79 321 87V158Q321 166 314 166H284Z" fill="#e9d5ff" stroke="#9333ea" stroke-width="3"/>
+    <path d="M300 174V202H215" fill="none" stroke="#9333ea" stroke-width="3" marker-end="url(#accent-arrow)"/>
+    <text x="127" y="205" fill="#9333ea">Estimated wrong</text>
+    <path d="M39 218V235H321V218" fill="none" stroke="#111827" stroke-width="3"/>
+    <text x="180" y="263">Fraction of the accepted list</text>
+    <text x="180" y="289" font-size="15">Schematic estimate; no fixed percentage</text>
+
+  </g>
+</svg>

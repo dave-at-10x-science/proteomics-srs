@@ -1,0 +1,148 @@
+# Starter vocabulary for proteomics and mass spectrometry.
+# Plain-language definitions come first; the technical definition is shown after answering.
+
+set:
+  id: ms-vocabulary
+  name: MS and proteomics vocabulary
+  default: false
+  tags: [vocabulary, mass-spectrometry, proteomics]
+
+note_type:
+  id: Term
+  fields:
+    - {name: term, label: Term, type: text}
+    - {name: definition, label: In plain language, type: markdown}
+    - {name: technical, label: Technical definition, type: markdown, optional: true}
+    - {name: example, label: Example, type: markdown, optional: true}
+    - {name: image, label: Image, type: image, optional: true}
+  templates:
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: typed
+
+notes:
+  - id: term-mz
+    term: m/z
+    definition: "Mass-to-charge ratio: what a mass spectrometer actually measures. An ion's mass divided by how many charges it carries."
+    technical: "The ratio of an ion's mass (in Da) to its charge number z. A peptide of mass M carrying z protons appears at (M + z × 1.00728) / z."
+    example: "A peptide of 1998 Da with 2 extra protons shows up near m/z 1000."
+
+  - id: term-charge-state
+    term: Charge state
+    definition: "How many charges an ion carries. Peptides usually pick up 2 or 3 protons in electrospray."
+    technical: "The integer z of an ion. Inferred from the spacing of its isotope peaks: 1/z apart on the m/z axis."
+
+  - id: term-isotope-envelope
+    term: Isotope envelope
+    definition: "The cluster of peaks one molecule makes because some of its atoms are heavier isotopes (mostly carbon-13)."
+    technical: "The isotopic distribution of an ion. Peaks are spaced by about 1.003 Da / z. The first (monoisotopic) peak contains only the lightest isotopes."
+
+  - id: term-monoisotopic-mass
+    term: Monoisotopic mass
+    definition: "The mass of a molecule made only of the most common, lightest isotope of each element."
+    technical: "Sum of the exact masses of the most abundant isotope of each atom (¹²C, ¹H, ¹⁴N, ¹⁶O, ³²S). Used for high-resolution mass matching."
+
+  - id: term-esi
+    term: Electrospray ionization (ESI)
+    definition: "A gentle way to turn molecules dissolved in liquid into charged ions in the gas phase, by spraying them through a high voltage."
+    technical: "Soft ionization in which a charged spray produces multiply-charged ions. Couples directly to liquid chromatography (LC-MS)."
+
+  - id: term-maldi
+    term: MALDI
+    definition: "A way to make ions by mixing the sample with a light-absorbing material and hitting it with a laser."
+    technical: "Matrix-assisted laser desorption/ionization. Produces mostly singly-charged ions; often paired with time-of-flight analyzers."
+
+  - id: term-lc
+    term: Liquid chromatography (LC)
+    definition: "Separating a mixture by pushing it through a packed column, so different molecules come out at different times."
+    technical: "In proteomics, usually reversed-phase nano-LC: peptides elute by hydrophobicity over an organic-solvent gradient into the mass spectrometer."
+
+  - id: term-retention-time
+    term: Retention time
+    definition: "When a molecule comes out of the chromatography column."
+    technical: "Elution time from the LC column. Reproducible enough to help match peptides between runs."
+
+  - id: term-ms1
+    term: MS1 (survey scan)
+    definition: "A snapshot of all the ions coming into the instrument at one moment, measuring their m/z and intensity."
+    technical: "Full scan of intact precursor ions. Used to pick precursors for fragmentation and for quantification."
+
+  - id: term-tandem-ms
+    term: Tandem MS (MS/MS, MS2)
+    definition: "Picking one ion, breaking it into pieces, and measuring the pieces to work out what it was."
+    technical: "Isolation of a precursor followed by fragmentation and a scan of the product ions. The fragment pattern reveals the peptide sequence."
+
+  - id: term-precursor
+    term: Precursor ion
+    definition: "The intact ion that gets selected and broken apart in tandem MS."
+    technical: "The ion isolated (by m/z window) for fragmentation; its m/z and charge constrain which peptides could match."
+
+  - id: term-by-ions
+    term: b and y ions
+    definition: "The two main kinds of pieces a peptide breaks into. b ions keep the start of the peptide, y ions keep the end."
+    technical: "Backbone amide-bond cleavage products from CID/HCD. b ions contain the N-terminus, y ions the C-terminus; their mass ladders spell out the sequence."
+
+  - id: term-cid-hcd
+    term: CID / HCD
+    definition: "Ways of breaking ions apart by smashing them into gas molecules."
+    technical: "Collision-induced dissociation and higher-energy collisional dissociation. Both mainly cleave peptide amide bonds, giving b and y ions."
+
+  - id: term-dda
+    term: Data-dependent acquisition (DDA)
+    definition: "The instrument picks the most intense ions it sees and fragments those, one after another."
+    technical: "Top-N precursor selection from each MS1 scan, with dynamic exclusion to avoid re-picking the same ion. Simple to interpret but undersamples low-abundance peptides."
+
+  - id: term-dia
+    term: Data-independent acquisition (DIA)
+    definition: "Instead of picking ions, the instrument fragments everything in wide m/z windows, stepping through the whole range."
+    technical: "Systematic fragmentation of all precursors in sequential isolation windows. Gives more complete, reproducible data but mixed spectra that need specialized software."
+
+  - id: term-orbitrap
+    term: Orbitrap
+    definition: "A mass analyzer where ions orbit a spindle-shaped electrode; how fast they oscillate tells their m/z very precisely."
+    technical: "Electrostatic ion trap; m/z is derived from the frequency of axial oscillation via Fourier transform. High resolution and mass accuracy."
+
+  - id: term-tof
+    term: Time-of-flight (TOF)
+    definition: "A mass analyzer that times how long ions take to fly down a tube. Lighter ions arrive first."
+    technical: "Ions accelerated through the same potential have velocity ∝ √(z/m), so flight time gives m/z. Fast acquisition."
+
+  - id: term-quadrupole
+    term: Quadrupole
+    definition: "Four parallel rods with changing voltages that only let ions of a chosen m/z pass through. Often used as a filter."
+    technical: "Mass filter using combined RF and DC fields; stable trajectories exist only for a selected m/z range. Used for precursor isolation."
+
+  - id: term-trypsin
+    term: Trypsin
+    definition: "The enzyme most often used to cut proteins into peptides before MS. It cuts after lysine (K) and arginine (R)."
+    technical: "Serine protease cleaving C-terminal to K and R, but not before proline. Leaves a basic residue at each peptide's C-terminus, which helps ionization and y-ion series."
+
+  - id: term-missed-cleavage
+    term: Missed cleavage
+    definition: "A spot where the enzyme should have cut but didn't, leaving a longer peptide."
+    technical: "An internal K/R (for trypsin) not cleaved. Search engines usually allow up to 1–2 per peptide."
+
+  - id: term-bottom-up
+    term: Bottom-up proteomics
+    definition: "Identifying proteins by first chopping them into peptides, measuring the peptides, then piecing back which proteins they came from."
+    technical: "Shotgun workflow: enzymatic digestion, LC-MS/MS of peptides, database search, and protein inference."
+
+  - id: term-psm
+    term: Peptide-spectrum match (PSM)
+    definition: "A match between one fragment spectrum and the peptide the software thinks produced it."
+    technical: "A scored assignment of an MS/MS spectrum to a candidate peptide sequence from a database search."
+
+  - id: term-fdr
+    term: False discovery rate (FDR)
+    definition: "The fraction of your reported identifications you expect to be wrong."
+    technical: "Usually estimated with a target-decoy search: decoy (e.g. reversed) sequences estimate how many target matches are false at a score threshold. 1% FDR is a common cutoff."
+
+  - id: term-ptm
+    term: Post-translational modification (PTM)
+    definition: "A chemical change made to a protein after it is built, such as adding a phosphate group."
+    technical: "Covalent modification after translation (phosphorylation, acetylation, glycosylation, …). Detected in MS as a mass shift on specific residues, e.g. +79.966 Da for phosphorylation."

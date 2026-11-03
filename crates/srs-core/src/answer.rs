@@ -82,10 +82,14 @@ mod tests {
     fn mass_shift_uses_tolerance() {
         let file = SetFile::from_yaml(include_str!("../../../seed/ptms/ptms.yaml")).unwrap();
         let t = file.note_type.template("name-to-mass-shift").unwrap();
-        let phospho = file.notes.iter().find(|n| n.id == "ptm-phospho").unwrap();
-        assert!(check(t, phospho, "79.966"));
-        assert!(check(t, phospho, "79.97 Da"));
-        assert!(!check(t, phospho, "80"));
-        assert!(!check(t, phospho, "heavy"));
+        let mut phospho = file.notes.iter().find(|n| n.id == "ptm-phospho").unwrap().clone();
+        // Numeric answer checking also supports retired directions in existing libraries.
+        phospho
+            .fields
+            .insert("mass_shift".into(), serde_json::json!(79.96633));
+        assert!(check(t, &phospho, "79.966"));
+        assert!(check(t, &phospho, "79.97 Da"));
+        assert!(!check(t, &phospho, "80"));
+        assert!(!check(t, &phospho, "heavy"));
     }
 }

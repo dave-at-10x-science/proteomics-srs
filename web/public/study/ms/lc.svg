@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <text x="69" y="40">Mixture</text><text x="208" y="40">Packed column</text>
+    <g stroke="#111827" stroke-width="4" marker-end="url(#arrow)"><path d="M25 96H107"/><path d="M292 96H334"/></g>
+    <g fill="#9333ea"><circle cx="46" cy="83" r="7"/><circle cx="67" cy="101" r="7"/><circle cx="87" cy="85" r="7"/></g>
+    <rect x="118" y="65" width="172" height="62" rx="12" fill="#faf5ff" stroke="#111827" stroke-width="3"/>
+    <g fill="#e9d5ff" stroke="#111827" stroke-width="1.5"><circle cx="137" cy="81" r="8"/><circle cx="160" cy="105" r="8"/><circle cx="184" cy="82" r="8"/><circle cx="208" cy="104" r="8"/><circle cx="233" cy="81" r="8"/><circle cx="264" cy="105" r="8"/></g>
+    <path d="M182 145V170" stroke="#9333ea" stroke-width="3" marker-end="url(#accent-arrow)"/>
+    <path d="M45 179V250H326M58 249H96Q108 249 115 201Q122 249 135 249H176Q188 249 196 184Q204 249 216 249H255Q267 249 274 214Q281 249 294 249H322" fill="none" stroke="#111827" stroke-width="3"/>
+    <text x="182" y="280">Time</text>
+  </g>
+</svg>

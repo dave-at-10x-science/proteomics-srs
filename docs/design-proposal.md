@@ -33,9 +33,10 @@ structures and game tiles use purpose-built views. Assets are bundled locally.
 ### Study introduces notes
 
 The learner chooses which sets to study. Study shows a batch of published notes from subscribed
-sets that the learner has not studied yet, with all fields visible. The default batch size is
-five notes. Finishing the batch marks its notes studied and makes their enabled cards eligible
-for review. Publishing a new note makes it available for Study; it does not mark it studied.
+sets that the learner has not studied yet and that have at least one usable enabled card, with
+all fields visible. The default batch size is five notes. Finishing the batch marks its notes
+studied and makes their usable enabled cards eligible for review. Publishing a new note does
+not mark it studied. Browse-only reference notes do not enter the Study queue.
 
 There is no enforced daily new-card limit. A legacy `new_per_day` setting remains in storage
 and the settings API, but Study batches control introduction of new material.
@@ -63,6 +64,10 @@ type in the set, with shuffled positions. Derived structures use the source SMIL
 note type's depiction template; uploaded/bundled pictures use their image URL. Before an
 answer, illustration options carry neutral option numbers without identity captions.
 
+Fields marked `detailed` use one-column picture choices on a phone and two columns from the
+`sm` breakpoint, so chemistry and instrument labels remain readable. Simpler pictures, including
+amino acids and monosaccharide symbols, keep two-column choices.
+
 ### Browse and memory practice
 
 Browse flips through published notes in a set with every field shown. It changes neither
@@ -75,6 +80,10 @@ UI offers four, six, eight, or ten pairs; the API clamps requests to three throu
 subject to enough distinct usable notes. Game results track time, flips, and personal bests
 separately from scheduling. There is no additional question after a successful match.
 
+A magnifier on a revealed detailed picture opens `DiagramPreview` at a larger size. The modal
+has the generic title **Diagram**, without the note's name. The preview button is separate
+from the flip button and is absent on hidden tiles; it does not change flips, matches or timers.
+
 Settings includes target retention, an optional review cap, theme selection, and a confirmed
 progress reset. Reset clears the current user's studied notes, schedules, review log, and game
 results while keeping content, subscriptions, and settings.
@@ -85,7 +94,8 @@ results while keeping content, subscriptions, and settings.
 
 - A **note type** defines fields, card templates, and optional structure depiction templates.
   Field kinds are text, Markdown, numbers with optional units, SMILES, and images. Images can
-  be uploaded or derived from SMILES.
+  be uploaded, bundled, or derived from SMILES. The optional `detailed` field hint controls
+  picture-choice layout and memory-game enlargement.
 - A **note** stores one learning item and its related facts under a note type. Its status is
   `draft` or `published`.
 - A **card template** defines prompt fields, answer fields, and an answer mode. A **card** is
@@ -98,6 +108,11 @@ results while keeping content, subscriptions, and settings.
 Drafts already have generated card records, but stay out of Study, Review, Browse, and the
 memory game. The current Library and content API expose them for editing; role restrictions
 do not exist yet.
+
+An optional picture can be omitted while drafting facts. Each card separately records whether
+its prompt and answer fields have content; a blank picture withholds its visual cards from
+Study and Review. Adding the picture makes those cards usable without changing their enablement
+or deleting schedules. A note with another usable direction can still be studied.
 
 ### Implemented authoring
 
@@ -112,9 +127,19 @@ Notes record status and timestamps, but no creator, editor, or publisher identit
 
 ### Starter content and startup import
 
-The five starter sets are the 20 standard amino acids, MS/proteomics vocabulary, PTMs,
-monosaccharides, and N-/O-glycosylation. The amino-acid set has 20 notes and seven enabled card
-templates per note, giving 140 cards:
+The bundled library has 11 sets, 93 unique notes and 273 active cards. A fresh database stores
+433 card rows, including disabled directions retained for stable identity and existing history.
+
+| Content | Notes | Active cards |
+|---|---:|---:|
+| Standard amino acids | 20 | 140 |
+| Monosaccharides | 9 | 27 |
+| Post-translational modifications | 14 | 42 |
+| O-GalNAc glycan motifs | 6 | 12 |
+| Glycosylation reference | 18 | 0 |
+| Six MS/proteomics topics | 26 | 52 |
+
+The amino-acid set has seven enabled templates per note:
 
 - Structure to name, three-letter code, and one-letter code: three separate typed cards.
 - One-letter code to name and three-letter code to name: multiple choice.
@@ -125,20 +150,33 @@ Side-chain class, residue mass, pI, and supporting notes are available as facts,
 dedicated class or mass review templates in the current set.
 
 Seed YAML imports run at every server start. They overwrite note-type definitions and set
-metadata, insert new notes, and preserve existing note fields/status. Deleting a seed note in
-the app allows the next startup to recreate it. The monosaccharide refresh has a one-time
-migration that replaces only fields still matching their original seed values, preserving
-authored replacements. A broader ownership policy is still needed before seed-derived sets
-and note types become fully editable in the app.
+metadata, insert new notes, and ordinarily preserve existing note fields/status. Explicit
+content upgrades are exceptions with versioned, one-time guards. Deleting a seed note in the
+app still allows the next startup to recreate it. A broader ownership policy is needed before
+seed-derived sets and note types become fully editable in the app.
 
-### Visual set pattern and monosaccharide pilot
+The original monosaccharide refresh is an append-only SQL migration. The PTM, MS, and glycan
+refresh uses `seed_refresh.rs` with immutable original YAML in `seed_baselines/` and receipts
+created by migration `0006_visual_study_sets.sql`. Each field is replaced or removed only when
+it still equals its original value; missing new fields are filled once. Authored replacements,
+status, timestamps, studied status, schedules, and review/game logs survive. Old seed drill
+cards are disabled in place, while authored legacy drill cards retain their enablement.
+PTMs with edited SMILES retain their existing example/context and wait for an authored diagram,
+so the refresh cannot substitute a stock picture of different chemistry.
+
+The four existing O-GalNAc note IDs move to `GlycanMotif` and the new motif set, retaining old
+template IDs in disabled form. Existing MS notes keep their IDs while moving to topic sets.
+Subscribers to the old sets inherit the corresponding topic subscriptions once; later opt-outs
+stick. Refresh receipts survive note deletion so recreating an ID cannot reapply the old upgrade.
+
+### Visual topic sets
 
 Use a recognizable picture and a small number of short facts, following the amino-acid set.
 Choose a consistent field schema for a topic family. Include names, codes, abbreviations, or
 distinguishing facts only when meaningful for that family; abbreviations are not universal.
 Keep optional context brief, and choose which facts merit their own cards rather than testing
-every field. Each card asks for one answer. Required card fields must be present on every note
-using that template; optional context need not generate cards.
+every field. Each card asks for one answer. Prompt and answer values must be present before a
+card is usable; optional context need not generate cards.
 
 Pictures should distinguish the items being tested and use consistent presentation. A useful
 default is picture → name, supplemented by name → picture multiple choice and short-code
@@ -149,7 +187,27 @@ The monosaccharide pilot has nine actual SNFG symbols, a name, abbreviation, com
 and a short context sentence per note. Three active directions focus on identity: name →
 abbreviation, name → picture, and picture → name. Neu5Ac/Neu5Gc accept common NeuAc/NeuGc aliases.
 The old mass and composition-class template IDs remain disabled to preserve their histories;
-their drills are also omitted from memory pairings. Other starter sets await review of this pilot.
+their drills are also omitted from memory pairings.
+
+The PTM set uses fourteen representative before-and-after connectivity diagrams, common sites,
+an example residue, a short chemical change and brief context. Active directions are picture
+to name, name to picture, and name to common sites. Mass and MS-detail templates remain defined
+but disabled for the seed notes. The drawings show connectivity, not complete reaction mechanisms
+or a fixed protonation state. The GG example is explicitly an analytical remnant after digestion.
+
+The O-GalNAc set has six motifs: Tn, a Neu5Ac-containing sialyl-Tn example, and cores 1–4. SNFG
+pictures show the connections and a consistent Ser/Thr attachment. Each note has a name,
+distinguishing feature and short context, with picture/name multiple choice in both directions.
+The former mixed glycan set keeps eighteen longer notes as **Glycosylation reference**, available
+in Browse with no active seed drills.
+
+The MS/proteomics notes share the `Term` schema across six coherent sets: Reading mass spectra
+(4 notes), LC and ionization (4), Mass analyzers (3), MS scans and acquisition (5), Peptide
+fragmentation (4), and Proteomics workflow (6). Each has a schematic, short definition, function
+and key fact where useful; symbols/abbreviations are optional. Picture/name multiple choice runs
+in both directions. Old definition template IDs remain disabled for the seed notes. Diagrams
+are teaching schematics rather than measured spectra or scale drawings; sources are recorded
+with the content.
 
 ## 4. Current architecture and storage
 
@@ -171,6 +229,9 @@ Phone / desktop browser                  Rust server
   separate templates table. Uploaded files are named by content hash, without a media table.
 - `users` holds learner settings. Subscriptions, studied notes, card states, review logs, and
   game sessions carry `user_id`. All handlers currently use `LOCAL_USER = 1`.
+- `cards.content_available` is separate from `cards.enabled`; reconciliation updates content
+  availability while preserving enablement. `seed_content_refreshes` records one-time content
+  upgrades and topic subscription moves.
 - The server controls time through `AppState::now()`, allowing tests to use a fixed clock.
   Migrations are append-only, and API tests use in-memory databases and a mock AI endpoint.
 - The PWA caches the interface and RDKit assets. API calls still require connectivity to the
@@ -245,7 +306,7 @@ Content creation and organization are the next product focus alongside user sepa
    than applying them invisibly.
 5. **Improve drafting and publishing.** Keep draft review, editing, publishing, and discard
    available to content authors. Record creator/editor/publisher attribution as accounts are
-   introduced. Source references and AI-assisted enrichment of existing notes are later
+   introduced. In-app source fields and AI-assisted enrichment of existing notes are later
    authoring improvements; they are not implemented today.
 
 Acceptance includes authoring a new topic set through the app, reusing a note without
@@ -260,14 +321,20 @@ must have explicit, confirmed semantics before those broader management actions 
 The optional Claude integration takes a topic, terms, or pasted text and asks for structured
 notes using the selected note type. Configure it through process environment variables; the
 server does not automatically load a `.env` file. Invalid field data and duplicate notes are
-skipped and reported. Created notes remain drafts until published. Publishing new content
-then makes it available in Study, with Review following each learner's Study completion.
+skipped and reported. Created notes remain drafts until published. Published notes with usable
+cards become available in Study, with Review following each learner's Study completion. Optional
+picture fields let AI draft the facts first; a human adds the diagram before visual cards run.
 
 SMILES are the source for small-molecule drawings. RDKit.js renders them in the browser and
 can align a shared backbone using a note type's depiction template. Uploaded images cover
 other visual material. The manual note editor parses SMILES for its live preview and prevents
 saving a detected parse failure. Developer seed tooling parses structures, checks amino-acid
 residue masses where provided, and generates previews.
+
+PTM schematics are generated by the native Rust CLI
+`cargo run -p srs-server --bin render_ptm_diagrams -- [output-directory]`, defaulting to
+`web/public/study/ptms/`. The crate keeps the server as its default binary. Glycan and MS
+schematics are local SVG assets under `web/public/study/`; they do not require runtime services.
 
 The common server validator checks required/unknown fields, scalar types, and length limits.
 Set-file checks also validate internal references and unique IDs. These checks support data
@@ -288,7 +355,8 @@ prioritized. The current author review and draft/publish workflow remains in pla
 ## 8. Delivery order and deferred work
 
 1. **Implemented foundation:** Rust scheduler and server, Study/Review, Browse, memory game,
-   starter sets, basic note authoring, uploads, and optional AI drafting.
+   eleven topic sets, visual multiple choice, detailed-diagram enlargement, guarded content
+   refreshes, basic note authoring, uploads, and optional AI drafting.
 2. **Next: users and access.** Authentication, `learner`/`content-author`, isolated progress,
    learner content visibility, and migration of the existing local account.
 3. **Next: content tools.** Set management and membership, note-type/template editing,
@@ -305,9 +373,12 @@ prioritized. The current author review and draft/publish workflow remains in pla
 ```text
 crates/srs-core/              Model, validation, FSRS, queues, and answer checks
 crates/srs-server/src/        Axum API, storage, seed import, and Claude client
+crates/srs-server/src/bin/    Native content tools, including the PTM diagram generator
+crates/srs-server/src/seed_baselines/ Immutable originals for guarded one-time content upgrades
 crates/srs-server/migrations/ Append-only SQLite migrations
 crates/srs-server/tests/      In-memory API integration tests
 web/app/                     Nuxt pages, components, API client, types, and theme
+web/public/study/             Bundled SVG study diagrams and symbols
 seed/<set>/<set>.yaml         Starter set, note type, and notes
 tools/                       Existing developer content-validation/rendering tools
 docs/                        Current design and roadmap

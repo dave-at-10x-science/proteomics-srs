@@ -91,11 +91,15 @@ pub async fn options(State(state): State<AppState>) -> ApiResult<Json<Vec<GameOp
     let mut out = Vec::new();
     for r in rows {
         let note_type = store::note_type(&state.pool, r.get("note_type_id")).await?;
+        let pairings = pairings(&note_type);
+        if pairings.is_empty() {
+            continue;
+        }
         out.push(GameOption {
             set_id: r.get("id"),
             set_name: r.get("name"),
             introduced: r.get::<i64, _>("introduced") as usize,
-            pairings: pairings(&note_type),
+            pairings,
         });
     }
     Ok(Json(out))

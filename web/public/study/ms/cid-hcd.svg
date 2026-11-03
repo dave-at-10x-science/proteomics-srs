@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <text x="180" y="31">Excite stored ions</text>
+    <path d="M39 93V210M321 93V210M69 73H291M69 230H291" stroke="#111827" stroke-width="12" stroke-linecap="round"/>
+    <path d="M74 151C76 84 268 87 282 148S90 218 74 151Z" fill="none" stroke="#9333ea" stroke-width="4" marker-end="url(#accent-arrow)"/>
+    <g fill="#e5e7eb" stroke="#111827" stroke-width="2"><circle cx="112" cy="141" r="9"/><circle cx="240" cy="158" r="9"/><circle cx="172" cy="188" r="9"/><circle cx="207" cy="113" r="9"/></g>
+    <g fill="#f3e8ff" stroke="#9333ea" stroke-width="2"><circle cx="152" cy="145" r="11"/><circle cx="173" cy="145" r="11"/><circle cx="218" cy="180" r="7"/></g>
+    <path d="M194 137L186 154L203 150L192 168" fill="none" stroke="#9333ea" stroke-width="3"/>
+    <text x="180" y="280">Stored ions collide with gas</text>
+
+  </g>
+</svg>
