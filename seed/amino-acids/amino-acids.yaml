@@ -20,7 +20,7 @@ note_type:
     - {name: smiles, label: SMILES, type: smiles}
     - {name: side_chain_class, label: Side-chain class, type: text}
     - {name: residue_mass_mono, label: Residue mass (monoisotopic), type: number, unit: Da}
-    - {name: pI, label: pI, type: number}
+    - {name: pI, label: Isoelectric point (pI), type: number}
     - {name: note, label: Note, type: markdown, optional: true}
   depiction_templates:
     amino-acid-backbone:
@@ -53,6 +53,10 @@ note_type:
     - id: three-letter-to-name
       prompt: [three_letter]
       answer: [name]
+      mode: multiple_choice
+    - id: name-to-structure
+      prompt: [name]
+      answer: [structure]
       mode: multiple_choice
 
 notes:

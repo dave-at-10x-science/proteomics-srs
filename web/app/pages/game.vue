@@ -33,14 +33,14 @@ const matched = computed(() => Object.values(states.value).filter((s) => s === '
 const total = computed(() => (board.value?.tiles.length ?? 0) / 2);
 const done = computed(() => !!board.value && matched.value === total.value);
 const columns = computed(() => {
-  // Structures need bigger tiles than short text.
+  // Images and structures need bigger tiles than short text.
   const t = board.value;
   if (!t) return 4;
-  const hasStructure = [pairing.value?.a, pairing.value?.b].some((f) => {
+  const hasVisual = [pairing.value?.a, pairing.value?.b].some((f) => {
     const d = t.note_type.fields.find((x) => x.name === f);
-    return d?.type === 'smiles' || (d?.type === 'image' && !!d.from);
+    return d?.type === 'smiles' || d?.type === 'image';
   });
-  return hasStructure ? 3 : 4;
+  return hasVisual ? 3 : 4;
 });
 
 async function start() {

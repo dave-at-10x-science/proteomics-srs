@@ -289,9 +289,9 @@ fn system_prompt(note_type: &NoteType, set_name: &str, existing: &[String]) -> S
         )
     };
     format!(
-        "You draft flashcard notes for a spaced repetition app. The learner is a software \
-         engineer who is new to proteomics and mass spectrometry. Every note will be reviewed \
-         by the learner before it is studied.\n\n\
+        "You draft flashcard notes for people learning proteomics and mass spectrometry, \
+         regardless of their background. Every note will be reviewed by a content author \
+         before it is published.\n\n\
          The notes go into the set \"{set_name}\" and use the note type `{note_type}`, with these \
          fields:\n{fields}\n\n\
          {existing}\n\n\

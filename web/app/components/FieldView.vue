@@ -21,6 +21,15 @@ const structureSmiles = computed(() => {
   if (props.def.type === 'image' && props.def.from) return String(props.fields[props.def.from] ?? '');
   return '';
 });
+const imageSource = computed(() => {
+  if (props.def.type !== 'image' || props.def.from) return '';
+  const source = String(value.value ?? '').trim();
+  // Older notes may store a text symbol in a field now defined as an image.
+  return /^(?:https?:\/\/|data:image\/)/i.test(source)
+    || /^(?:\/(?!\/)|\.{1,2}\/)[^\s]*$/.test(source)
+    || /^(?:[^\s/?#:]+\/)*[^\s/?#:]+\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#][^\s]*)?$/i.test(source)
+    ? source : '';
+});
 const template = computed(() => {
   const id = props.def.depiction_template;
   return id ? props.noteType.depiction_templates?.[id] : undefined;
@@ -33,8 +42,8 @@ const html = computed(() => (props.def.type === 'markdown' ? (marked.parse(Strin
     <div v-if="label" class="mb-0.5 text-xs font-medium text-muted">{{ fieldLabel(def) }}</div>
     <StructureView v-if="structureSmiles" :smiles="structureSmiles" :template="template" />
     <img
-      v-else-if="def.type === 'image' && value"
-      :src="String(value)"
+      v-else-if="imageSource"
+      :src="imageSource"
       :alt="fieldLabel(def)"
       class="mx-auto block max-h-80 max-w-full rounded-lg"
     />

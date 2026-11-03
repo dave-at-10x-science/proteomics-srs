@@ -2,9 +2,8 @@
 
 Quick orientation for agents working in this repo. [README.md](README.md) has the full feature
 description, environment variables and API table; [docs/design-proposal.md](docs/design-proposal.md)
-has the original design. Where the design doc and the code disagree (for example, it describes a
-daily new-card cap and sibling burying, which study mode and independent per-card scheduling
-replaced), the code and README win.
+describes the current implementation and planned work. Its planned sections are not claims
+about shipped features; where descriptions of current behavior disagree, the code wins.
 
 ## What this is
 
@@ -13,6 +12,12 @@ is a local, single-user spaced repetition app for proteomics and mass spectromet
 (Axum + SQLite) serves a JSON API and a Nuxt SPA that is used mostly on a phone. Cards are
 scheduled with FSRS. New notes are read in **Study**, then their cards enter **Review** rounds.
 A memory game and Browse mode never touch the schedule. Optional AI drafting calls the Claude API.
+
+Next priorities are multiple users with independent progress and fuller content authoring.
+Most accounts will have the `learner` role; `content-author` will add access to content tools.
+Roles and authentication are not implemented yet. Learners can have any background. Automated
+scientific validation and full offline study/review are deferred; a future drafting integration
+may use our own proteomics model.
 
 ## Map
 
@@ -67,7 +72,9 @@ To run the app: build the web app once, then `cargo run -p srs-server` and open
   or template id in a seed file orphans the history for those cards.
 - **Seed import runs on every start.** Note types and sets are overwritten from the YAML, new
   notes are inserted, and existing notes are never updated (so edits made in the app survive).
-  Changing an existing note's fields in YAML won't change an existing database.
+  Changing an existing note's fields in YAML won't change an existing database. The one-time
+  monosaccharide migration updates only fields matching their original seed values; keep any
+  future content refreshes equally explicit about preserving authored fields and progress.
 - **Adding a seed set:** `every_seed_set_is_valid` in `srs-core` checks it, CI runs
   `render_structures.py` on it, and `TestApp::build` in `tests/api.rs` asserts the number of
   imported sets, so update that count. SMILES are the source of truth for structures; the SVG
@@ -119,7 +126,9 @@ The web app uses [Nuxt UI](https://ui.nuxt.com) v4 on Tailwind CSS v4. Don't inv
   theme files in `web/.nuxt/ui/<component>.ts` for slot names and default classes.
 - **Phone first.** Check new screens at 320px wide in light and dark mode. Controls default to
   size `xl` (44px tall).
-- **Keep it working offline.** No web fonts, CDNs or runtime fetches beyond `/api`.
+- **Bundle assets locally.** No web fonts, CDNs or external runtime asset fetches. The PWA caches
+  the interface and RDKit; API-backed learning sessions need the server. Full offline learning
+  is deferred.
 
 ## Conventions
 

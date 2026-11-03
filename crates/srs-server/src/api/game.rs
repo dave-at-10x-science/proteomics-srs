@@ -31,7 +31,7 @@ pub struct Pairing {
 pub fn pairings(note_type: &NoteType) -> Vec<Pairing> {
     let mut seen = HashSet::new();
     let mut out = Vec::new();
-    for t in &note_type.templates {
+    for t in note_type.templates.iter().filter(|t| t.enabled_by_default) {
         let (Some(a), Some(b)) = (t.prompt.first(), t.answer.first()) else {
             continue;
         };

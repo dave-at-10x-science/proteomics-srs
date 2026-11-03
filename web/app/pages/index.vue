@@ -51,7 +51,7 @@ onMounted(load);
           <div class="mt-1 text-sm text-white/80">due for review</div>
         </div>
         <div>
-          <div class="text-2xl leading-none font-semibold tabular-nums">{{ unstudied }}</div>
+          <div class="text-5xl leading-none font-bold tracking-tight tabular-nums">{{ unstudied }}</div>
           <div class="mt-1 text-sm text-white/80">not studied yet</div>
         </div>
       </div>

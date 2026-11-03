@@ -339,11 +339,13 @@ pub async fn card_state(
 }
 
 pub async fn card_exists(pool: &SqlitePool, id: &CardId) -> ApiResult<bool> {
-    let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM cards WHERE note_id = ? AND template_id = ?")
-        .bind(&id.note_id)
-        .bind(&id.template_id)
-        .fetch_one(pool)
-        .await?;
+    let n: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM cards WHERE note_id = ? AND template_id = ? AND enabled = 1",
+    )
+    .bind(&id.note_id)
+    .bind(&id.template_id)
+    .fetch_one(pool)
+    .await?;
     Ok(n > 0)
 }
 

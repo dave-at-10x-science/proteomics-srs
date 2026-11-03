@@ -6,6 +6,10 @@
 /* 10x Science purple, the exact shades in the logo (600, 500 and 400). 600 is the accent in light
    mode, 400 in dark mode. */
 @theme static {
+  /* Local serif fonts distinguish capital I from lowercase l in scientific notation. */
+  --font-serif: Georgia, Cambria, 'Times New Roman', Times, serif;
+  --default-font-family: var(--font-serif);
+
   --color-brand-50: #faf5ff;
   --color-brand-100: #f3e8ff;
   --color-brand-200: #e9d5ff;

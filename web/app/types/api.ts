@@ -53,6 +53,7 @@ export interface ReviewCard {
   note_type: NoteType;
   template: CardTemplate;
   fields: Record<string, FieldValue>;
+  /** Answer values; image choices hold local URLs or the derived image's source SMILES. */
   choices: string[] | null;
   /** Seconds until due again, per rating. */
   intervals: Record<Rating, number>;

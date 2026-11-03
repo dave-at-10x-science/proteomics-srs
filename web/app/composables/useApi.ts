@@ -28,6 +28,7 @@ export function useApi() {
     studyBatch: (size: number) => $fetch<StudyBatch>('/api/study/batch', { query: { size } }),
     markStudied: (note_ids: string[]) =>
       $fetch<{ added: number }>('/api/study/studied', { method: 'POST', body: { note_ids } }),
+    // Choice strings render through the answer field: text, image URL, or source SMILES.
     card: (ref: CardRef) => $fetch<ReviewCard>('/api/review/card', { query: { ...ref } }),
     check: (note_id: string, template_id: string, input: string) =>
       $fetch<CheckResponse>('/api/review/check', { method: 'POST', body: { note_id, template_id, input } }),

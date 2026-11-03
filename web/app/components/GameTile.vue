@@ -16,6 +16,15 @@ const smiles = computed(() => {
   if (d?.type === 'image' && d.from) return String(props.fields[d.from] ?? '');
   return '';
 });
+const image = computed(() => {
+  const d = def.value;
+  if (d?.type !== 'image' || d.from) return '';
+  const source = String(props.fields[d.name] ?? '').trim();
+  return /^(?:https?:\/\/|data:image\/)/i.test(source)
+    || /^(?:\/(?!\/)|\.{1,2}\/)[^\s]*$/.test(source)
+    || /^(?:[^\s/?#:]+\/)*[^\s/?#:]+\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#][^\s]*)?$/i.test(source)
+    ? source : '';
+});
 const template = computed(() => {
   const id = def.value?.depiction_template;
   return id ? props.noteType.depiction_templates?.[id] : undefined;
@@ -34,9 +43,9 @@ const text = computed(() => {
       'bg-linear-to-br from-primary-500 to-primary-700 shadow-sm active:scale-95': state === 'hidden',
       'bg-default ring-2 ring-primary shadow-md': state === 'shown',
       'bg-success/10 ring-2 ring-success/60 opacity-60': state === 'matched',
-      'bg-white!': state !== 'hidden' && !!smiles,
+      'bg-white!': state !== 'hidden' && !!(smiles || image),
     }"
-    :aria-label="state === 'hidden' ? 'Hidden card' : smiles ? 'Structure' : text"
+    :aria-label="state === 'hidden' ? 'Hidden card' : smiles ? 'Structure' : image ? 'Image' : text"
     :disabled="state !== 'hidden'"
     @click="$emit('flip')"
   >
@@ -44,10 +53,11 @@ const text = computed(() => {
     <BrandMark v-if="state === 'hidden'" class="w-1/2 text-white/55" accent-class="text-white" />
     <!-- Structures are rendered once and kept, so flipping back and forth doesn't redraw. -->
     <StructureView v-if="smiles" v-show="state !== 'hidden'" :smiles="smiles" :template="template" fit />
+    <img v-else-if="image" v-show="state !== 'hidden'" :src="image" alt="" class="size-full object-contain p-1" />
     <span
       v-else-if="state !== 'hidden'"
-      class="p-1 leading-tight wrap-anywhere text-highlighted"
-      :class="text.length > 30 ? 'text-[0.7rem]' : 'text-base font-semibold'"
+      class="max-w-full p-1 leading-tight wrap-anywhere text-highlighted"
+      :class="text.length > 30 ? 'text-[0.7rem]' : text.length > 20 ? 'text-xs' : text.length > 13 ? 'text-sm font-semibold' : 'text-base font-semibold'"
     >
       {{ text }}
     </span>

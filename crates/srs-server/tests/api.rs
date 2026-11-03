@@ -111,7 +111,7 @@ async fn default_set_is_imported_and_subscribed() {
     assert_eq!(sets[0]["id"], "amino-acids-20");
     assert_eq!(sets[0]["subscribed"], true);
     assert_eq!(sets[0]["note_count"], 20);
-    assert_eq!(sets[0]["card_count"], 120);
+    assert_eq!(sets[0]["card_count"], 140);
 }
 
 #[tokio::test]
@@ -126,7 +126,7 @@ async fn cards_of_removed_templates_are_deleted_on_import() {
     file.note_type.templates.retain(|tpl| tpl.id != removed);
     seed::import_set(&t.pool, &file).await.unwrap();
 
-    assert_eq!(t.get("/api/sets").await[0]["card_count"], 100);
+    assert_eq!(t.get("/api/sets").await[0]["card_count"], 120);
     let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM card_state WHERE template_id = ?")
         .bind(&removed)
         .fetch_one(&t.pool)
@@ -156,10 +156,10 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
-    // 20 amino acids x 6 templates, 24 terms x 2, 14 PTMs x 5, 9 monosaccharides x 5,
+    // 20 amino acids x 7 templates, 24 terms x 2, 14 PTMs x 5, 9 monosaccharides x 5,
     // 22 glycan concepts x 2.
     assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 89);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 327);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 347);
     assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 89);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
@@ -195,12 +195,12 @@ async fn cards_enter_review_only_once_their_note_is_studied() {
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 
-    // Every enabled card of both notes is now due: 2 notes x 6 cards, all answer types at once.
+    // Every enabled card of both notes is now due: 2 notes x 7 cards, all answer types at once.
     let round = t.get("/api/review/round?size=50").await;
-    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 12 }));
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 14 }));
     assert_eq!(round["unstudied"], 18);
     let cards = round["cards"].as_array().unwrap();
-    assert_eq!(cards.len(), 12);
+    assert_eq!(cards.len(), 14);
     assert!(
         cards
             .iter()
@@ -301,6 +301,133 @@ async fn typed_answers_are_checked() {
 }
 
 #[tokio::test]
+async fn names_offer_four_distinct_illustrations_with_the_correct_structure() {
+    let t = TestApp::new().await;
+    let seed = SetFile::from_yaml(include_str!("../../../seed/amino-acids/amino-acids.yaml")).unwrap();
+    let allowed: Vec<_> = seed.notes.iter().map(|n| n.text("smiles").unwrap()).collect();
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..12 {
+        let card = t
+            .get("/api/review/card?note_id=aa-ala&template_id=name-to-structure")
+            .await;
+        assert_eq!(card["template"]["prompt"], json!(["name"]));
+        assert_eq!(card["template"]["answer"], json!(["structure"]));
+        assert_eq!(card["template"]["mode"], "multiple_choice");
+        assert_eq!(card["fields"]["name"], "Alanine");
+        assert_eq!(card["note_type"]["fields"][3]["from"], "smiles");
+        let choices = card["choices"].as_array().unwrap();
+        assert_eq!(choices.len(), 4);
+        assert_eq!(choices.iter().collect::<std::collections::HashSet<_>>().len(), 4);
+        assert_eq!(
+            choices.iter().filter(|v| **v == card["fields"]["smiles"]).count(),
+            1
+        );
+        for choice in choices {
+            let value = choice.as_str().unwrap();
+            assert!(allowed.iter().any(|s| s == value));
+            seen.insert(value.to_string());
+        }
+        let request = |input: &Value| json!({ "note_id": "aa-ala", "template_id": "name-to-structure", "input": input });
+        let (status, correct) = t
+            .post("/api/review/check", request(&card["fields"]["smiles"]))
+            .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(correct["correct"], true);
+        assert_eq!(correct["expected"]["smiles"], card["fields"]["smiles"]);
+        let wrong = choices.iter().find(|v| **v != card["fields"]["smiles"]).unwrap();
+        assert_eq!(
+            t.post("/api/review/check", request(wrong)).await.1["correct"],
+            false
+        );
+    }
+    assert!(seen.len() > 4, "distractors should vary between questions");
+}
+
+#[tokio::test]
+async fn derived_picture_prompts_also_offer_distinct_text_distractors() {
+    let t = TestApp::new().await;
+    let card = t
+        .get("/api/review/card?note_id=ptm-phospho&template_id=structure-to-name")
+        .await;
+    let choices = card["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 4);
+    assert!(choices.contains(&json!("Phosphorylation")));
+}
+
+#[tokio::test]
+async fn monosaccharides_use_pictures_and_short_facts_without_mass_drills() {
+    let t = TestApp::new().await;
+    t.call(
+        "PUT",
+        "/api/sets/amino-acids-20/subscription",
+        Some(json!({ "subscribed": false })),
+    )
+    .await;
+    t.call(
+        "PUT",
+        "/api/sets/monosaccharides/subscription",
+        Some(json!({ "subscribed": true })),
+    )
+    .await;
+    let ids = t.study(20).await;
+    assert_eq!(ids.len(), 9);
+    let round = t.get("/api/review/round?size=100").await;
+    assert_eq!(round["cards"].as_array().unwrap().len(), 27);
+    for card in round["cards"].as_array().unwrap() {
+        assert!(
+            ["name-to-abbreviation", "name-to-symbol", "symbol-to-name"]
+                .contains(&card["template_id"].as_str().unwrap())
+        );
+    }
+    let card = t
+        .get("/api/review/card?note_id=mono-glc&template_id=name-to-symbol")
+        .await;
+    let choices = card["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 4);
+    assert!(choices.contains(&card["fields"]["symbol"]));
+    for choice in choices {
+        let url = choice.as_str().unwrap();
+        assert!(url.starts_with("/study/monosaccharides/"));
+        let path = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../web/public"))
+            .join(url.trim_start_matches('/'));
+        assert!(path.is_file(), "missing bundled illustration: {url}");
+    }
+    let (_, checked) = t
+        .post(
+            "/api/review/check",
+            json!({
+                "note_id": "mono-neuac", "template_id": "name-to-abbreviation", "input": "NeuAc"
+            }),
+        )
+        .await;
+    assert_eq!(checked["correct"], true, "common abbreviations remain valid");
+    let options = t.get("/api/game/options").await;
+    assert_eq!(options[0]["set_id"], "monosaccharides");
+    assert_eq!(options[0]["pairings"].as_array().unwrap().len(), 2);
+    let board = t
+        .get("/api/game/board?set=monosaccharides&a=symbol&b=name&pairs=9")
+        .await;
+    assert_eq!(board["tiles"].as_array().unwrap().len(), 18);
+    for fields in board["notes"].as_object().unwrap().values() {
+        assert!(fields["symbol"].as_str().unwrap().ends_with(".svg"));
+        assert!(fields.get("residue_mass").is_none());
+    }
+    let uri = "/api/review/card?note_id=mono-glc&template_id=name-to-residue-mass";
+    assert_eq!(t.call("GET", uri, None).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(
+        t.post(
+            "/api/review/answer",
+            json!({
+                "note_id": "mono-glc", "template_id": "name-to-residue-mass", "rating": "good"
+            })
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
 async fn notes_can_be_added_to_a_new_set() {
     let t = TestApp::new().await;
     let (status, set) = t.post("/api/sets", json!({ "name": "Proteases" })).await;
@@ -340,7 +467,7 @@ async fn notes_can_be_added_to_a_new_set() {
         .find(|s| s["id"] == "proteases")
         .unwrap();
     assert_eq!(proteases["note_count"], 1);
-    assert_eq!(proteases["card_count"], 6);
+    assert_eq!(proteases["card_count"], 7);
 
     let (status, _) = t
         .call("DELETE", "/api/notes/aminoacid-selenocysteine", None)
@@ -484,17 +611,26 @@ async fn memory_game_uses_only_introduced_notes_and_never_touches_the_schedule()
     assert!(note["smiles"].is_string() && note["name"].is_string());
     assert!(note.get("pI").is_none(), "only the fields tiles need are sent");
 
-    // Values must be unique per side, or matches would be ambiguous. Glucose, mannose and
-    // galactose are all Hex and GlcNAc and GalNAc are both HexNAc, so these five give two pairs.
+    // Duplicate pictures must not make matches ambiguous. Give these five fixture notes only
+    // two distinct pictures, so they cannot produce the minimum three pairs.
     let five = ["mono-glc", "mono-man", "mono-gal", "mono-glcnac", "mono-galnac"];
+    for (index, id) in five.iter().enumerate() {
+        let image = if index < 3 {
+            "/study/monosaccharides/glc.svg"
+        } else {
+            "/study/monosaccharides/glcnac.svg"
+        };
+        sqlx::query("UPDATE notes SET fields = json_set(fields, '$.symbol', ?) WHERE id = ?")
+            .bind(image)
+            .bind(id)
+            .execute(&t.pool)
+            .await
+            .unwrap();
+    }
     let (status, v) = t.post("/api/study/studied", json!({ "note_ids": five })).await;
     assert_eq!(status, StatusCode::OK, "{v}");
     let (status, err) = t
-        .call(
-            "GET",
-            "/api/game/board?set=monosaccharides&a=name&b=shorthand",
-            None,
-        )
+        .call("GET", "/api/game/board?set=monosaccharides&a=symbol&b=name", None)
         .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert!(err["error"].as_str().unwrap().contains("found 2"), "{err}");
@@ -702,7 +838,7 @@ async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
     let t = TestApp::new().await;
     t.study(2).await;
     let round = t.get("/api/review/round?size=4").await;
-    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 12 }));
+    assert_eq!(round["counts"], json!({ "learning": 0, "review": 0, "new": 14 }));
     let cards = round["cards"].as_array().unwrap().clone();
     assert_eq!(cards.len(), 4);
 
@@ -720,9 +856,9 @@ async fn rounds_are_a_fixed_list_of_cards_shown_once_each() {
 
     // The next round can pick up the failed card (learn-ahead) and the rest still unreviewed.
     let round = t.get("/api/review/round?size=50").await;
-    assert_eq!(round["counts"], json!({ "learning": 1, "review": 0, "new": 8 }));
+    assert_eq!(round["counts"], json!({ "learning": 1, "review": 0, "new": 10 }));
     let next = round["cards"].as_array().unwrap();
-    assert_eq!(next.len(), 9);
+    assert_eq!(next.len(), 11);
     assert!(next.contains(&cards[0]));
 
     let (status, _) = t.call("GET", "/api/review/round?size=0", None).await;
