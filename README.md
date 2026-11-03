@@ -20,8 +20,8 @@ crates/srs-core/   Scheduling (FSRS), daily queue, content model, answer checkin
 crates/srs-server/ Local server: JSON API + serves the web app. SQLite in data/.
 web/               Nuxt SPA built with Nuxt UI, installable as a PWA. Structures drawn from SMILES
                    with RDKit.js.
-seed/              Eleven topic sets as YAML: amino acids (default), monosaccharides, PTMs,
-                   O-GalNAc motifs, glycosylation reference, and six MS/proteomics topics.
+seed/              Six topic sets as YAML: amino acids (default), monosaccharides, PTMs,
+                   glycan motifs, mass spec concepts, and peptide fragmentation.
 tools/             Content helpers (SMILES validation and structure previews).
 docs/              Design notes.
 ```
@@ -76,25 +76,27 @@ are name → abbreviation, name → picture, and picture → name. NeuAc/NeuGc a
 Neu5Ac/Neu5Gc. Abbreviation cards belong only in note types where abbreviations are useful.
 The former mass and composition-class drills are disabled, with their schedules/history kept.
 
-The same picture-and-short-facts approach now covers PTMs, O-GalNAc motifs, and six MS topics.
+The same picture-and-short-facts approach covers PTMs, glycan motifs, and MS concepts.
 PTMs use representative before-and-after chemistry diagrams and common modification sites.
-The glycan motifs build on the learned SNFG symbols, with explicit linkages and Ser/Thr attachment.
-MS sets use schematics for spectra, instruments, acquisition, fragmentation, and workflow.
-Long glycosylation material remains available in Browse as **Glycosylation reference**.
+The glycan motifs build on the learned SNFG symbols, showing N-glycan cores and classes,
+O-GalNAc cores, O-GlcNAc, and terminal motifs with explicit linkages. Useful material from the
+former glycosylation reference is now taught through diagrams; the remaining reference notes
+are retired from the starter library.
 
-The bundled library starts with 93 notes and 273 active cards across 11 sets:
+The bundled library starts with 88 notes and 299 active cards across six sets:
 
 | Content | Notes | Active cards |
 |---|---:|---:|
 | Standard amino acids | 20 | 140 |
 | Monosaccharides | 9 | 27 |
 | Post-translational modifications | 14 | 42 |
-| O-GalNAc glycan motifs | 6 | 12 |
-| Glycosylation reference (Browse only) | 18 | 0 |
-| Six MS/proteomics topics | 26 | 52 |
+| Glycan motifs | 15 | 30 |
+| Mass spec concepts | 22 | 44 |
+| Peptide fragmentation | 8 | 16 |
 
-The six MS topics are Reading mass spectra (4 notes), LC and ionization (4), Mass analyzers (3),
-MS scans and acquisition (5), Peptide fragmentation (4), and Proteomics workflow (6).
+**Mass spec concepts** combines reading spectra, LC and ionization, analyzers, acquisition,
+and proteomics workflow. **Peptide fragmentation** keeps its own set, with a, b, x and y ions,
+the different backbone bonds behind a/x and b/y cleavage, and CID/HCD methods.
 
 Detailed diagrams get full-width answer choices on a phone. In the memory game, the magnifier
 on a revealed detailed picture opens a larger view without showing the answer's name.
@@ -123,9 +125,13 @@ No progress reset is needed. As with other migrations, it runs automatically at 
 
 The PTM, MS, and glycan upgrades also apply once at startup, comparing each existing field with
 an immutable copy of the old seed. Original values are refreshed and missing new fields filled;
-authored replacements, status, timestamps, schedules, and logs survive. Existing glycan motif
-IDs move to the visual set, and subscriptions follow the reorganized topics once, preserving
-later opt-outs. Old seed drills are disabled in place; authored legacy drill cards are retained.
+authored replacements, status, timestamps, schedules, and logs survive. Reused glycan and MS
+notes keep their IDs. Existing MS subscriptions follow the combined concepts set or peptide
+fragmentation as appropriate, once, preserving later opt-outs. Superseded sets and unused
+reference notes remain archived in existing databases, outside the learner library and queues.
+Authored MS notes follow the combined set; custom reference notes remain available in
+**Your glycosylation notes**. Old seed drills are disabled in place; authored legacy drill
+cards are retained.
 An edited PTM SMILES keeps its existing example and context; its picture cards wait for an
 authored diagram rather than receiving a stock picture of different chemistry.
 
@@ -167,7 +173,7 @@ a fallback model instead of returning the refusal.
 | GET | `/api/review/next` | Today's counts and the next card, with everything needed to render it |
 | POST | `/api/review/check` | Check an answer: `{note_id, template_id, input}`; derived illustrations use their source value as input |
 | POST | `/api/review/answer` | Submit a rating (`again`/`hard`/`good`/`easy`); returns the next card |
-| GET/POST | `/api/sets` | List sets, create a set |
+| GET/POST | `/api/sets` | List current sets (retired collections omitted), create a set |
 | PUT | `/api/sets/{id}/subscription` | `{subscribed: bool}` |
 | GET | `/api/sets/{id}/notes` | Notes in a set |
 | POST | `/api/sets/{id}/draft` | Draft notes with Claude: `{source, count?, note_type_id?}`; returns `{created, skipped}` |

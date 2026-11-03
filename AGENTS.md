@@ -13,10 +13,11 @@ is a local, single-user spaced repetition app for proteomics and mass spectromet
 scheduled with FSRS. New notes are read in **Study**, then their cards enter **Review** rounds.
 A memory game and Browse mode never touch the schedule. Optional AI drafting calls the Claude API.
 
-The starter library has 11 sets, 93 unique notes and 273 active cards (433 stored card rows,
-including disabled directions). PTMs use before-and-after diagrams, six MS topics use concept
-schematics, and six O-GalNAc motifs use SNFG pictures. The 18-note glycosylation reference is
-Browse-only. Counts describe a fresh import; authored notes and retained drills can add more.
+The starter library has six sets, 88 unique notes and 299 active cards (449 stored card rows,
+including disabled directions): amino acids, monosaccharides, PTMs, glycan motifs, mass spec
+concepts, and peptide fragmentation. Glycan motifs cover N-linked, O-linked and terminal motifs;
+fragmentation includes a/x and b/y cleavage. Counts describe a fresh import. Existing libraries
+retain archived sets/history, and authored notes and retained drills can add more.
 
 Next priorities are multiple users with independent progress and fuller content authoring.
 Most accounts will have the `learner` role; `content-author` will add access to content tools.
@@ -86,6 +87,10 @@ Use Rust for new processing and reusable content tools; the existing Python seed
   fields once. Keep refresh receipts and baselines intact: authored replacements, timestamps,
   status, schedules and logs must survive. Topic moves retain note/card IDs and inherit old
   subscriptions once; later opt-outs stick. New YAML edits alone do not refresh existing notes.
+- **Retired sets stay in storage.** `sets.retired` excludes superseded sets from learner lists,
+  Study, Review and Game without deleting content or history. The combined MS set keeps authored
+  notes from its predecessors. Custom reference notes remain in **Your glycosylation notes**;
+  the old reference set is retired when it has no custom notes.
 - **Unavailable content is separate from disabled cards.** `content_available` follows each
   template's required prompt/answer values. An optional missing picture withholds visual cards;
   adding it must not override `enabled` or remove history. Retired template IDs stay defined.

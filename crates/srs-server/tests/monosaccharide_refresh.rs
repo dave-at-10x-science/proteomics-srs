@@ -37,6 +37,7 @@ async fn legacy_database() -> SqlitePool {
         include_str!("../migrations/0003_studied_notes.sql"),
         include_str!("../migrations/0004_uppercase_three_letter_codes.sql"),
         include_str!("../migrations/0006_visual_study_sets.sql"),
+        include_str!("../migrations/0007_curate_study_library.sql"),
     ] {
         sqlx::raw_sql(migration).execute(&pool).await.unwrap();
     }

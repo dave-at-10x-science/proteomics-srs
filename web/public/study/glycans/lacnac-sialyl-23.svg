@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320">
+  <title>Terminal glycan motif</title>
+  <!-- SNFG: https://www.ncbi.nlm.nih.gov/glycans/snfg.html -->
+  <!-- Linkage isomers: https://eprints.lib.hokudai.ac.jp/repo/huscap/all/5844/RCMS20-3.pdf -->
+  <rect width="480" height="320" fill="#fff" />
+  <path d="M65 200H427" fill="none" stroke="#000" stroke-width="4" />
+  <polygon points="65,160 105,200 65,240 25,200" fill="#a54399" stroke="#000" stroke-width="3" />
+  <circle cx="210" cy="200" r="32" fill="#ffd400" stroke="#000" stroke-width="3" />
+  <rect x="318" y="168" width="64" height="64" fill="#0072bc" stroke="#000" stroke-width="3" />
+  <g fill="#000" font-family="Georgia, Cambria, 'Times New Roman', Times, serif" text-anchor="middle">
+    <text x="137" y="148" font-size="30">α2-3</text>
+    <text x="280" y="158" font-size="30">β1-4</text>
+    <text x="444" y="211" font-size="32">R</text>
+    <text x="260" y="295" font-size="22">R = rest of glycan</text>
+  </g>
+</svg>

@@ -78,7 +78,7 @@ pub async fn draft(
             "count must be between 1 and {MAX_COUNT}"
         )));
     }
-    let set_name: String = sqlx::query_scalar("SELECT name FROM sets WHERE id = ?")
+    let set_name: String = sqlx::query_scalar("SELECT name FROM sets WHERE id = ? AND retired = 0")
         .bind(&set_id)
         .fetch_optional(&state.pool)
         .await?
@@ -172,6 +172,13 @@ pub async fn publish_drafts(
     State(state): State<AppState>,
     Path(set_id): Path<String>,
 ) -> ApiResult<Json<Published>> {
+    let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
+        .bind(&set_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if active == 0 {
+        return Err(ApiError::NotFound(format!("set `{set_id}`")));
+    }
     let published = sqlx::query(
         "UPDATE notes SET status = 'published'
          WHERE status = 'draft' AND id IN (SELECT note_id FROM set_notes WHERE set_id = ?)",
@@ -332,7 +339,7 @@ mod tests {
     use srs_core::content::SetFile;
 
     fn vocabulary() -> NoteType {
-        let src = include_str!("../../../../seed/ms-vocabulary/ms-vocabulary.yaml");
+        let src = include_str!("../../../../seed/mass-spec-concepts/mass-spec-concepts.yaml");
         SetFile::from_yaml(src).unwrap().note_type
     }
 

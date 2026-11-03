@@ -125,6 +125,7 @@ pub async fn unstudied_notes(pool: &SqlitePool, user: i64) -> ApiResult<Vec<Stor
          FROM notes n
          JOIN set_notes sn ON sn.note_id = n.id
          JOIN subscriptions s ON s.set_id = sn.set_id AND s.user_id = ?1
+         JOIN sets library ON library.id = sn.set_id AND library.retired = 0
          WHERE n.status = 'published'
            AND EXISTS (SELECT 1 FROM cards c WHERE c.note_id = n.id
                        AND c.enabled = 1 AND c.content_available = 1)
@@ -187,14 +188,15 @@ pub async fn reset_progress(pool: &SqlitePool, user: i64) -> ApiResult<u64> {
     Ok(reviews)
 }
 
-/// The first set (by id) containing the note.
+/// The first active set (by id) containing the note.
 pub async fn set_of_note(pool: &SqlitePool, note_id: &str) -> ApiResult<Option<String>> {
-    Ok(
-        sqlx::query_scalar("SELECT MIN(set_id) FROM set_notes WHERE note_id = ?")
-            .bind(note_id)
-            .fetch_one(pool)
-            .await?,
+    Ok(sqlx::query_scalar(
+        "SELECT MIN(sn.set_id) FROM set_notes sn JOIN sets s ON s.id = sn.set_id
+             WHERE sn.note_id = ? AND s.retired = 0",
     )
+    .bind(note_id)
+    .fetch_one(pool)
+    .await?)
 }
 
 /// Insert or replace a note's fields, and make sure it has a card for every template.
@@ -279,6 +281,7 @@ pub async fn candidates(pool: &SqlitePool, user: i64, now: DateTime<Utc>) -> Api
          JOIN notes n ON n.id = c.note_id AND n.status = 'published'
          JOIN set_notes sn ON sn.note_id = c.note_id
          JOIN subscriptions s ON s.set_id = sn.set_id AND s.user_id = ?1
+         JOIN sets library ON library.id = sn.set_id AND library.retired = 0
          LEFT JOIN card_state cs
              ON cs.user_id = ?1 AND cs.note_id = c.note_id AND cs.template_id = c.template_id
          WHERE c.enabled = 1 AND c.content_available = 1

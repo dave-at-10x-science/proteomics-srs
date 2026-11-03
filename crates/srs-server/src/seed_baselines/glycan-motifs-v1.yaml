@@ -1,0 +1,79 @@
+# Six defined O-GalNAc motifs, drawn with the symbols learned in the monosaccharide set.
+# Structures: Essentials of Glycobiology, 4th edition, Table 10.1:
+# https://www.ncbi.nlm.nih.gov/books/NBK579921/table/CSHLP5087CH10TB1/
+# Symbols, colors and linkage notation: https://www.ncbi.nlm.nih.gov/glycans/snfg.html
+# The sialyl-Tn example explicitly uses Neu5Ac. These are motifs, not complete extended glycans.
+
+set:
+  id: glycan-motifs
+  name: O-GalNAc glycan motifs
+  default: false
+  tags: [glycans, glycoproteomics, visual-recognition]
+
+note_type:
+  id: GlycanMotif
+  fields:
+    - {name: term, label: Name, type: text}
+    - {name: image, label: SNFG motif, type: image, optional: true}
+    - {name: feature, label: Recognise it, type: markdown}
+    - {name: context, label: Context, type: markdown}
+    # Keep fields and template IDs from the former reference notes for existing history.
+    - {name: kind, label: Topic, type: text, optional: true}
+    - {name: definition, label: Previous definition, type: markdown, optional: true}
+    - {name: detail, label: Previous detail, type: markdown, optional: true}
+  templates:
+    - id: image-to-term
+      prompt: [image]
+      answer: [term]
+      mode: multiple_choice
+    - id: term-to-image
+      prompt: [term]
+      answer: [image]
+      mode: multiple_choice
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+      enabled_by_default: false
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: multiple_choice
+      enabled_by_default: false
+
+notes:
+  - id: gly-tn
+    term: Tn antigen
+    image: /study/glycans/tn.svg
+    feature: "A single GalNAc α-linked to Ser/Thr."
+    context: "Extending this GalNAc produces other mucin-type O-glycan motifs."
+
+  - id: gly-sialyl-tn
+    term: Sialyl-Tn antigen
+    image: /study/glycans/sialyl-tn.svg
+    feature: "Neu5Ac α2-6 linked to GalNAc."
+    context: "Here the sialic acid is Neu5Ac, the common human form."
+
+  - id: gly-core1
+    term: O-glycan core 1 (T antigen)
+    image: /study/glycans/core1.svg
+    feature: "Gal β1-3 linked to GalNAc."
+    context: "Also called T antigen; a common core for longer mucin-type O-glycans."
+
+  - id: gly-core2
+    term: O-glycan core 2
+    image: /study/glycans/core2.svg
+    feature: "Core 1 with an added GlcNAc β1-6 branch."
+    context: "The GalNAc carries two arms: one Gal and one GlcNAc."
+
+  - id: gly-core3
+    term: O-glycan core 3
+    image: /study/glycans/core3.svg
+    feature: "GlcNAc β1-3 linked to GalNAc."
+    context: "Often found in mucins of the gastrointestinal tract."
+
+  - id: gly-core4
+    term: O-glycan core 4
+    image: /study/glycans/core4.svg
+    feature: "Core 3 with an added GlcNAc β1-6 branch."
+    context: "Both arms begin with GlcNAc; core 2 has Gal on its β1-3 arm."

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Peptide backbone naming diagram">
+  <!-- Connectivity and charge-retention map, not a reaction mechanism or complete product structure. -->
+  <!-- Carbon alpha to carbonyl gives a/x; carbonyl to nitrogen gives b/y. Target series names are not printed. -->
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="21" text-anchor="middle">
+    <text x="180" y="28">Identify the cleavage family</text>
+    <text x="43" y="57" font-size="18">N end</text><text x="317" y="57" font-size="18">C end</text>
+
+    <g fill="none" stroke="#111827" stroke-width="3">
+      <path d="M36 132H50M80 132H96M247 132H270M311 132H325"/>
+      <path d="M116 94V114M290 94V114"/>
+      <path d="M171 94V115M177 94V115"/>
+    </g>
+    <g font-size="25"><text x="26" y="140">…</text><text x="66" y="141">N</text><text x="116" y="141">Cα</text><text x="174" y="141">C</text><text x="232" y="141">N</text><text x="290" y="141">Cα</text><text x="338" y="140">…</text></g>
+    <g font-size="23"><text x="116" y="84">R₁</text><text x="174" y="84">O</text><text x="290" y="84">R₂</text></g>
+    <path d="M136 132H143M155 132H160" stroke="#9333ea" stroke-width="5"/><path d="M190 132H218" stroke="#111827" stroke-width="3"/>
+    <path d="M149 101V170" fill="none" stroke="#9333ea" stroke-width="3" stroke-dasharray="5 4"/>
+    <text x="149" y="191" font-size="19">cut</text>
+    <rect x="18" y="212" width="139" height="42" rx="10" fill="#faf5ff" stroke="#9333ea" stroke-width="2"/><rect x="203" y="212" width="139" height="42" rx="10" fill="#faf5ff" stroke="#9333ea" stroke-width="2"/><text x="87" y="239" font-size="17">N end charged</text><text x="180" y="239" font-size="19">or</text><text x="273" y="239" font-size="17">C end charged</text>
+    <text x="180" y="282" font-size="14">Backbone map; H atoms/transfers omitted</text>
+  </g>
+</svg>

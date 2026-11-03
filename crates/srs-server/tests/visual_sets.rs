@@ -41,7 +41,7 @@ fn shared_note_types_have_the_same_definition_in_every_topic_file() {
 }
 
 async fn import(pool: &SqlitePool) {
-    assert_eq!(seed::import_dir(pool, SEED_DIR.as_ref()).await.unwrap(), 11);
+    assert_eq!(seed::import_dir(pool, SEED_DIR.as_ref()).await.unwrap(), 6);
 }
 
 async fn call(pool: &SqlitePool, method: &str, path: &str, body: Option<Value>) -> (StatusCode, Value) {
@@ -80,6 +80,7 @@ async fn legacy_database() -> SqlitePool {
         include_str!("../migrations/0003_studied_notes.sql"),
         include_str!("../migrations/0004_uppercase_three_letter_codes.sql"),
         include_str!("../migrations/0005_refresh_monosaccharide_visuals.sql"),
+        include_str!("../migrations/0007_curate_study_library.sql"),
     ] {
         sqlx::raw_sql(sql).execute(&pool).await.unwrap();
     }
@@ -142,20 +143,232 @@ async fn add_history(pool: &SqlitePool, note: &str, template: &str) {
         .bind(note).execute(pool).await.unwrap();
 }
 
+// Construct the previously shipped library without running today's refresh logic.
+async fn insert_previous_set(pool: &SqlitePool, file: &SetFile) {
+    let mut tx = pool.begin().await.unwrap();
+    sqlx::query("INSERT INTO note_types (id, definition) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET definition = excluded.definition")
+        .bind(&file.note_type.id).bind(serde_json::to_string(&file.note_type).unwrap())
+        .execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO sets (id, name) VALUES (?, ?)")
+        .bind(&file.set.id)
+        .bind(&file.set.name)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let now = Utc.with_ymd_and_hms(2026, 10, 20, 12, 0, 0).unwrap();
+    for note in &file.notes {
+        store::upsert_note(&mut tx, &file.note_type, note, "published", now)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE notes SET created_at = '2026-10-20T12:00:00Z' WHERE id = ?")
+            .bind(&note.id)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        store::add_to_set(&mut tx, &file.set.id, &note.id).await.unwrap();
+        sqlx::query("INSERT INTO seed_content_refreshes VALUES ('visual-study-sets-2026-11-03', ?)")
+            .bind(&note.id)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    tx.commit().await.unwrap();
+}
+
+#[tokio::test]
+async fn curation_upgrades_the_previous_visual_library_without_reviving_opt_outs_or_losing_authored_notes() {
+    let pool = open_db("sqlite::memory:").await.unwrap();
+    for source in [
+        include_str!("../src/seed_baselines/glycosylation-reference-v1.yaml"),
+        include_str!("../src/seed_baselines/glycan-motifs-v1.yaml"),
+        include_str!("../src/seed_baselines/fragmentation-v1.yaml"),
+    ] {
+        insert_previous_set(&pool, &SetFile::from_yaml(source).unwrap()).await;
+    }
+    let combined = SetFile::from_yaml(include_str!(
+        "../../../seed/mass-spec-concepts/mass-spec-concepts.yaml"
+    ))
+    .unwrap();
+    for (id, range) in [
+        ("ms-vocabulary", 0..4),
+        ("ms-ionization", 4..8),
+        ("ms-analyzers", 8..11),
+        ("ms-acquisition", 11..16),
+        ("ms-workflow", 16..22),
+    ] {
+        let mut file = combined.clone();
+        file.set.id = id.into();
+        file.notes = combined.notes[range].to_vec();
+        insert_previous_set(&pool, &file).await;
+    }
+    sqlx::raw_sql(
+        "INSERT INTO seed_content_refreshes VALUES ('visual-study-topics-2026-11-03', 'sets');
+         INSERT INTO subscriptions (user_id, set_id) VALUES (1, 'ms-ionization'), (1, 'glycans');
+         UPDATE notes SET fields = json_set(fields, '$.definition', 'My own ion explanation', '$.image', '/media/my-b.svg')
+           WHERE id = 'term-by-ions';
+         UPDATE notes SET fields = json_set(fields, '$.detail', 'My own glycan context') WHERE id = 'gly-core-fucose';
+         INSERT INTO notes (id, note_type_id, fields) VALUES
+           ('my-ms-note', 'Term', '{\"term\":\"My concept\",\"definition\":\"My explanation\",\"image\":\"/media/my-ms.svg\"}'),
+           ('my-glycan-note', 'GlycoConcept', '{\"term\":\"My glycan\",\"kind\":\"Custom\",\"definition\":\"Keep this\"}');
+         INSERT INTO set_notes VALUES ('ms-ionization', 'my-ms-note', 99), ('glycans', 'my-glycan-note', 99);
+         INSERT INTO cards (note_id, template_id, position, enabled) VALUES ('my-glycan-note', 'term-to-definition', 0, 1);
+         INSERT INTO game_sessions (user_id, set_id, pairing, pairs, flips, duration_ms, completed, played_at)
+           VALUES (1, 'ms-ionization', 'image:term', 4, 10, 15000, 1, '2026-10-20T12:00:00Z');",
+    ).execute(&pool).await.unwrap();
+    for (note, template) in [
+        ("term-by-ions", "image-to-term"),
+        ("gly-n-core", "term-to-definition"),
+        ("my-glycan-note", "term-to-definition"),
+    ] {
+        add_history(&pool, note, template).await;
+    }
+    import(&pool).await;
+    let (_, sets) = call(&pool, "GET", "/api/sets", None).await;
+    let sets = sets.as_array().unwrap();
+    assert!(sets.iter().all(|set| {
+        ![
+            "glycans",
+            "ms-vocabulary",
+            "ms-ionization",
+            "ms-analyzers",
+            "ms-acquisition",
+            "ms-workflow",
+        ]
+        .contains(&set["id"].as_str().unwrap())
+    }));
+    for (id, subscribed) in [
+        ("mass-spec-concepts", true),
+        ("glycan-motifs", false),
+        ("ms-fragmentation", false),
+        ("glycosylation-authored", true),
+    ] {
+        assert_eq!(
+            sets.iter().find(|set| set["id"] == id).unwrap()["subscribed"],
+            subscribed
+        );
+    }
+    let b = store::note(&pool, "term-by-ions").await.unwrap();
+    assert_eq!(b.note.text("definition").unwrap(), "My own ion explanation");
+    assert_eq!(b.note.text("image").unwrap(), "/media/my-b.svg");
+    assert_eq!(
+        store::note(&pool, "gly-n-core").await.unwrap().note_type_id,
+        "GlycanMotif"
+    );
+    assert_eq!(
+        store::note(&pool, "gly-core-fucose")
+            .await
+            .unwrap()
+            .note
+            .text("detail")
+            .unwrap(),
+        "My own glycan context"
+    );
+    assert_eq!(
+        store::note(&pool, "gly-tn")
+            .await
+            .unwrap()
+            .note
+            .text("family")
+            .unwrap(),
+        "O-GalNAc"
+    );
+    assert_eq!(
+        store::set_of_note(&pool, "my-ms-note").await.unwrap().unwrap(),
+        "mass-spec-concepts"
+    );
+    assert_eq!(
+        store::set_of_note(&pool, "my-glycan-note")
+            .await
+            .unwrap()
+            .unwrap(),
+        "glycosylation-authored"
+    );
+    assert!(store::set_of_note(&pool, "gly-endo-h").await.unwrap().is_none());
+    for table in ["card_state", "review_log", "studied_notes"] {
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(&format!("SELECT COUNT(*) FROM {table}"))
+                .fetch_one(&pool)
+                .await
+                .unwrap(),
+            3
+        );
+    }
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM game_sessions")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, String>("SELECT created_at FROM notes WHERE id = 'gly-n-core'")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        "2026-10-20T12:00:00Z"
+    );
+    // Stale authoring screens cannot save new content into a hidden collection.
+    let (status, _) = call(&pool, "POST", "/api/notes", Some(json!({"set_id":"ms-ionization","note_type_id":"Term","id":"lost-note","fields":{"term":"Lost","definition":"Must reject"}}))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        call(&pool, "POST", "/api/sets/glycans/publish-drafts", None)
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        call(
+            &pool,
+            "GET",
+            "/api/game/board?set=ms-ionization&a=image&b=term",
+            None
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    sqlx::query("DELETE FROM subscriptions WHERE user_id = 1 AND set_id = 'mass-spec-concepts'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE notes SET fields = json_remove(fields, '$.image') WHERE id = 'gly-n-core'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    import(&pool).await;
+    assert!(
+        store::note(&pool, "gly-n-core")
+            .await
+            .unwrap()
+            .note
+            .get("image")
+            .is_none()
+    );
+    let (_, sets) = call(&pool, "GET", "/api/sets", None).await;
+    assert_eq!(
+        sets.as_array()
+            .unwrap()
+            .iter()
+            .find(|set| set["id"] == "mass-spec-concepts")
+            .unwrap()["subscribed"],
+        false
+    );
+    let candidates = store::candidates(&pool, 1, Utc.with_ymd_and_hms(2026, 11, 3, 12, 0, 0).unwrap())
+        .await
+        .unwrap();
+    assert!(
+        candidates
+            .iter()
+            .all(|card| ["amino-acids-20", "glycosylation-authored"].contains(&card.set_id.as_str()))
+    );
+    assert!(candidates.iter().any(|card| card.id.note_id == "my-glycan-note"));
+}
+
 #[tokio::test]
 async fn all_visual_questions_have_bundled_pictures_and_usable_choices() {
     let pool = open_db("sqlite::memory:").await.unwrap();
     import(&pool).await;
-    let sets = [
-        "ptms",
-        "glycan-motifs",
-        "ms-vocabulary",
-        "ms-ionization",
-        "ms-analyzers",
-        "ms-acquisition",
-        "ms-fragmentation",
-        "ms-workflow",
-    ];
+    let sets = ["ptms", "glycan-motifs", "mass-spec-concepts", "ms-fragmentation"];
     let mut checked = 0;
     let mut shared_term = None;
     for set_id in sets {
@@ -207,7 +420,7 @@ async fn all_visual_questions_have_bundled_pictures_and_usable_choices() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 46);
+    assert_eq!(checked, 59);
 }
 
 #[tokio::test]
@@ -277,34 +490,27 @@ async fn refresh_preserves_authored_fields_history_and_topic_choices() {
             .unwrap();
     assert_eq!(metadata, ("old-created".into(), "old-updated".into()));
     assert!(
-        store::set_notes(&pool, "glycans")
+        store::set_notes(&pool, "glycan-motifs")
             .await
             .unwrap()
             .iter()
-            .all(|n| n.note.id != "gly-core2")
+            .any(|n| n.note.id == "gly-core2")
     );
     assert!(
-        store::set_notes(&pool, "ms-vocabulary")
+        store::set_notes(&pool, "mass-spec-concepts")
             .await
             .unwrap()
             .iter()
-            .all(|n| n.note.id != "term-esi")
+            .any(|n| n.note.id == "term-esi")
     );
     let subscriptions: Vec<String> = sqlx::query_scalar("SELECT set_id FROM subscriptions WHERE user_id = 1")
         .fetch_all(&pool)
         .await
         .unwrap();
-    for set in [
-        "ms-ionization",
-        "ms-analyzers",
-        "ms-acquisition",
-        "ms-fragmentation",
-        "ms-workflow",
-        "glycan-motifs",
-    ] {
+    for set in ["mass-spec-concepts", "ms-fragmentation", "glycan-motifs"] {
         assert!(subscriptions.contains(&set.into()));
     }
-    sqlx::query("DELETE FROM subscriptions WHERE user_id = 1 AND set_id = 'ms-ionization'")
+    sqlx::query("DELETE FROM subscriptions WHERE user_id = 1 AND set_id = 'mass-spec-concepts'")
         .execute(&pool)
         .await
         .unwrap();
@@ -324,7 +530,7 @@ async fn refresh_preserves_authored_fields_history_and_topic_choices() {
     );
     assert_eq!(
         sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM subscriptions WHERE user_id = 1 AND set_id = 'ms-ionization'"
+            "SELECT COUNT(*) FROM subscriptions WHERE user_id = 1 AND set_id = 'mass-spec-concepts'"
         )
         .fetch_one(&pool)
         .await
@@ -470,7 +676,7 @@ async fn authored_notes_keep_their_existing_drills_when_seed_schemas_change() {
         "My explanation"
     );
     assert!(
-        store::set_notes(&pool, "ms-vocabulary")
+        store::set_notes(&pool, "mass-spec-concepts")
             .await
             .unwrap()
             .iter()

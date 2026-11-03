@@ -1,0 +1,228 @@
+# Beginner visual concepts. Diagrams are original schematics, not to scale.
+# Primary references:
+# https://publications.iupac.org/pac/85/7/1515/index.html
+# https://goldbook.iupac.org/terms/view/12495
+# https://pubmed.ncbi.nlm.nih.gov/1309610/
+# https://doi.org/10.1351/pac199365040819
+# https://pubmed.ncbi.nlm.nih.gov/2774189/
+# https://www.ssi.shimadzu.com/service-support/faq/maldi/maldi-basics/index.html
+# https://www.shimadzu.com.sg/an/service-support/technical-support/analysis-basics/lcms-intro/61intro.html
+# https://pubmed.ncbi.nlm.nih.gov/10740853/
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC3433915/
+# https://pubmed.ncbi.nlm.nih.gov/11231557/
+# https://pubmed.ncbi.nlm.nih.gov/18067249/
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC2922680/
+# https://www.unimod.org/modifications_view.php?editid1=21
+set:
+  id: mass-spec-concepts
+  name: Mass spec concepts
+  default: false
+  tags: [mass-spectrometry, proteomics, visual-recognition]
+
+note_type:
+  id: Term
+  fields:
+    - {name: term, label: Name, type: text}
+    - {name: image, label: Diagram, type: image, optional: true, detailed: true}
+    - {name: short_form, label: Symbol or abbreviation, type: text, optional: true}
+    - {name: definition, label: What it is, type: markdown}
+    - {name: function, label: What it does, type: text, optional: true}
+    - {name: key_fact, label: Key fact, type: text, optional: true}
+    - {name: technical, label: Technical definition, type: markdown, optional: true}
+    - {name: example, label: Example, type: markdown, optional: true}
+  templates:
+    # Keep these identities for history; new practice uses the visual directions below.
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+      enabled_by_default: false
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: typed
+      enabled_by_default: false
+    - id: image-to-term
+      prompt: [image]
+      answer: [term]
+      mode: multiple_choice
+      enabled_by_default: true
+    - id: term-to-image
+      prompt: [term]
+      answer: [image]
+      mode: multiple_choice
+      enabled_by_default: true
+
+notes:
+  # Reading mass spectra
+  - id: term-mz
+    term: Mass-to-charge ratio
+    image: /study/ms/mz.svg
+    short_form: m/z
+    definition: "An ion's mass divided by its charge number."
+    function: Locate ions on a mass spectrum
+    key_fact: Ion mass 1000 Da and 2+ gives 500.
+
+  - id: term-charge-state
+    term: Charge state
+    image: /study/ms/charge-state.svg
+    short_form: z
+    definition: "How many elementary charges an ion carries."
+    function: Describe an ion's charge
+    key_fact: 2+ means two positive charges.
+
+  - id: term-isotope-envelope
+    term: Isotope envelope
+    image: /study/ms/isotope-envelope.svg
+    definition: "A group of peaks from different isotope compositions of the same ion."
+    function: Recognize an ion's isotope pattern
+    key_fact: More charges make isotope peaks closer.
+
+  - id: term-monoisotopic-mass
+    term: Monoisotopic mass
+    image: /study/ms/monoisotopic-mass.svg
+    definition: "Exact mass calculated with the most abundant isotope of each element."
+    function: Define one isotope composition
+    key_fact: Calculated from exact isotope masses.
+
+  # LC and ionization
+  - id: term-lc
+    term: Liquid chromatography
+    image: /study/ms/lc.svg
+    short_form: LC
+    definition: "Separate a mixture as a liquid carries it through a stationary phase."
+    function: Separate sample components
+    key_fact: Components can elute at different times.
+
+  - id: term-retention-time
+    term: Retention time
+    image: /study/ms/retention-time.svg
+    short_form: tR
+    definition: "Time from injection to a compound's chromatographic peak maximum."
+    function: Locate a peak in time
+    key_fact: Read from the chromatogram time axis.
+
+  - id: term-esi
+    term: Electrospray ionization
+    image: /study/ms/esi.svg
+    short_form: ESI
+    definition: "Ionize a liquid sample by making charged droplets in an electric field."
+    function: Produce gas-phase ions
+    key_fact: Peptides often carry multiple charges.
+
+  - id: term-maldi
+    term: Matrix-assisted laser desorption/ionization
+    image: /study/ms/maldi.svg
+    short_form: MALDI
+    definition: "Use a laser and a light-absorbing matrix to produce sample ions."
+    function: Produce gas-phase ions
+    key_fact: Sample and matrix are combined.
+
+  # Mass analyzers
+  - id: term-quadrupole
+    term: Quadrupole
+    image: /study/ms/quadrupole.svg
+    definition: "Use electric fields between four rods to transmit a selected m/z range."
+    function: Filter ions by m/z
+    key_fact: Constant + oscillating voltages
+
+  - id: term-tof
+    term: Time-of-flight analyzer
+    image: /study/ms/tof.svg
+    short_form: TOF
+    definition: "Infer m/z from the time ions take to reach a detector."
+    function: Measure ion flight time
+    key_fact: "Same voltage: lower m/z arrives first."
+
+  - id: term-orbitrap
+    term: Orbitrap
+    image: /study/ms/orbitrap.svg
+    definition: "Infer m/z from ions oscillating along a central electrode while orbiting it."
+    function: Measure ion oscillation frequency
+    key_fact: Axial oscillation frequency reports m/z.
+
+  # MS scans and acquisition
+  - id: term-ms1
+    term: MS1 survey scan
+    image: /study/ms/ms1.svg
+    short_form: MS1
+    definition: "A scan measuring the m/z and signal of precursor ions before fragmentation."
+    function: Survey precursor signals
+    key_fact: Measures intact precursor ions.
+
+  - id: term-tandem-ms
+    term: Tandem mass spectrometry
+    image: /study/ms/tandem-ms.svg
+    short_form: MS/MS
+    definition: "Select precursor ions, fragment them, and measure their product ions."
+    function: Learn from fragment patterns
+    key_fact: An MS2 spectrum measures product ions.
+
+  - id: term-precursor
+    term: Precursor ion
+    image: /study/ms/precursor.svg
+    definition: "An ion selected to form product ions in a later stage of MS."
+    function: Start a fragmentation step
+    key_fact: Isolation selects an m/z range.
+
+  - id: term-dda
+    term: Data-dependent acquisition
+    image: /study/ms/dda.svg
+    short_form: DDA
+    definition: "Choose precursor ions for fragmentation using signals in a survey scan."
+    function: Target selected precursors
+    key_fact: Selection depends on observed signals.
+
+  - id: term-dia
+    term: Data-independent acquisition
+    image: /study/ms/dia.svg
+    short_form: DIA
+    definition: "Collect fragments without choosing precursors by survey-scan intensity."
+    function: Sample a planned precursor range
+    key_fact: Often uses successive m/z windows.
+
+  # Proteomics workflow
+  - id: term-bottom-up
+    term: Bottom-up proteomics
+    image: /study/ms/bottom-up.svg
+    definition: "Study proteins by digesting them and measuring their peptides."
+    function: Infer proteins from peptide evidence
+    key_fact: "Common route: digest, LC-MS/MS, match."
+
+  - id: term-trypsin
+    term: Trypsin
+    image: /study/ms/trypsin.svg
+    definition: "An enzyme used to digest proteins, usually cutting after lysine or arginine."
+    function: Cut proteins into peptides
+    key_fact: Recognizes K and R cleavage sites.
+
+  - id: term-missed-cleavage
+    term: Missed cleavage
+    image: /study/ms/missed-cleavage.svg
+    definition: "A potential enzyme cleavage site left uncut within a digestion product."
+    function: Describe incomplete digestion
+    key_fact: A tryptic peptide can retain K or R.
+
+  - id: term-ptm
+    term: Post-translational modification
+    image: /study/ms/ptm.svg
+    short_form: PTM
+    definition: "A covalent chemical change to a protein after translation."
+    function: Alter protein chemistry
+    key_fact: Phosphorylation adds a phosphate group.
+
+  - id: term-psm
+    term: Peptide-spectrum match
+    image: /study/ms/psm.svg
+    short_form: PSM
+    definition: "A scored assignment of an MS/MS spectrum to a candidate peptide sequence."
+    function: Link a spectrum to a peptide
+    key_fact: A match is a proposed assignment.
+
+  - id: term-fdr
+    term: False discovery rate
+    image: /study/ms/fdr.svg
+    short_form: FDR
+    definition: "Expected proportion of false findings among the reported identifications."
+    function: Assess an identification list
+    key_fact: Target-decoy searches can estimate it.

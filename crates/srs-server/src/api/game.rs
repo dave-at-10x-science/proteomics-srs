@@ -81,7 +81,8 @@ pub async fn options(State(state): State<AppState>) -> ApiResult<Json<Vec<GameOp
          FROM sets s
          JOIN set_notes sn ON sn.set_id = s.id
          JOIN notes n ON n.id = sn.note_id AND n.status = 'published'
-         WHERE EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
+         WHERE s.retired = 0
+           AND EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
          GROUP BY s.id, n.note_type_id
          ORDER BY s.is_default DESC, s.name",
     )
@@ -131,6 +132,13 @@ pub struct Board {
 }
 
 pub async fn board(State(state): State<AppState>, Query(q): Query<BoardQuery>) -> ApiResult<Json<Board>> {
+    let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
+        .bind(&q.set)
+        .fetch_one(&state.pool)
+        .await?;
+    if active == 0 {
+        return Err(ApiError::NotFound(format!("set `{}`", q.set)));
+    }
     let want = q.pairs.unwrap_or(8).clamp(MIN_PAIRS, MAX_PAIRS);
     let introduced: HashSet<String> = sqlx::query_scalar(
         "SELECT st.note_id FROM studied_notes st

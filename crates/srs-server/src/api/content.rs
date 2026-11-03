@@ -68,7 +68,7 @@ pub async fn list_sets(State(state): State<AppState>) -> ApiResult<Json<Vec<SetS
                 (SELECT COUNT(*) FROM set_notes sn WHERE sn.set_id = s.id) AS note_count,
                 (SELECT COUNT(*) FROM set_notes sn JOIN cards c ON c.note_id = sn.note_id
                  WHERE sn.set_id = s.id AND c.enabled = 1 AND c.content_available = 1) AS card_count
-         FROM sets s ORDER BY s.is_default DESC, s.name",
+         FROM sets s WHERE s.retired = 0 ORDER BY s.is_default DESC, s.name",
     )
     .bind(LOCAL_USER)
     .fetch_all(&state.pool)
@@ -152,7 +152,7 @@ pub async fn set_subscription(
     Path(set_id): Path<String>,
     Json(req): Json<Subscription>,
 ) -> ApiResult<StatusCode> {
-    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ?")
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
         .bind(&set_id)
         .fetch_one(&state.pool)
         .await?;
@@ -226,7 +226,7 @@ pub async fn create_note(
     Json(req): Json<NewNote>,
 ) -> ApiResult<(StatusCode, Json<StoredNote>)> {
     let note_type = store::note_type(&state.pool, &req.note_type_id).await?;
-    let set_exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ?")
+    let set_exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
         .bind(&req.set_id)
         .fetch_one(&state.pool)
         .await?;

@@ -2,6 +2,9 @@
 # Primary references:
 # https://www.ssi.shimadzu.com/service-support/faq/maldi/maldi-basics/index.html
 # https://pubmed.ncbi.nlm.nih.gov/6525415/
+# https://pubmed.ncbi.nlm.nih.gov/2074849/
+# https://doi.org/10.1016/j.ijms.2015.07.021
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC2553356/
 # https://docs.thermofisher.com/r/Stellar-Method-Editor-Help/1994607755v2en-US2024683403
 # https://pubmed.ncbi.nlm.nih.gov/17721543/
 set:
@@ -49,16 +52,45 @@ notes:
   - id: term-by-ions
     term: b ions
     image: /study/ms/by-ions.svg
-    definition: "Peptide-bond fragments that retain the peptide's N-terminus and a charge."
+    definition: "N-terminal charged fragments named for peptide C(=O)–N bond cleavage."
     function: Read the N-terminal sequence
     key_fact: The subscript counts retained residues.
 
   - id: term-y-ions
     term: y ions
     image: /study/ms/y-ions.svg
-    definition: "Peptide-bond fragments that retain the peptide's C-terminus and a charge."
+    definition: "C-terminal charged fragments named for peptide C(=O)–N bond cleavage."
     function: Read the C-terminal sequence
     key_fact: The subscript counts retained residues.
+
+  - id: term-a-ions
+    term: a ions
+    image: /study/ms/a-ions.svg
+    definition: "N-terminal charged fragments named for backbone Cα–C(=O) bond cleavage."
+    function: Read the N-terminal sequence
+    key_fact: Can form when a b ion loses CO.
+
+  - id: term-x-ions
+    term: x ions
+    image: /study/ms/x-ions.svg
+    definition: "C-terminal charged fragments named for backbone Cα–C(=O) bond cleavage."
+    function: Read the C-terminal sequence
+    key_fact: Shares its cut family with a ions.
+
+  # These test the broken bond, rather than which terminal side retains charge.
+  - id: term-ax-cleavage
+    term: a/x cleavage
+    image: /study/ms/ax-cleavage.svg
+    definition: "Backbone Cα–C(=O) cleavage is named a/x according to the charged end."
+    function: "N-end charge: a; C-end charge: x"
+    key_fact: Both partners need not be observed.
+
+  - id: term-by-cleavage
+    term: b/y cleavage
+    image: /study/ms/by-cleavage.svg
+    definition: "Peptide C(=O)–N cleavage is named b/y according to the charged end."
+    function: "N-end charge: b; C-end charge: y"
+    key_fact: Both partners need not be observed.
 
   # Scope CID to its ion-trap form so the HCD diagram has one unambiguous answer.
   - id: term-cid-hcd

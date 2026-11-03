@@ -36,7 +36,7 @@ The learner chooses which sets to study. Study shows a batch of published notes 
 sets that the learner has not studied yet and that have at least one usable enabled card, with
 all fields visible. The default batch size is five notes. Finishing the batch marks its notes
 studied and makes their usable enabled cards eligible for review. Publishing a new note does
-not mark it studied. Browse-only reference notes do not enter the Study queue.
+not mark it studied. Retired sets do not enter the Study queue.
 
 There is no enforced daily new-card limit. A legacy `new_per_day` setting remains in storage
 and the settings API, but Study batches control introduction of new material.
@@ -127,17 +127,18 @@ Notes record status and timestamps, but no creator, editor, or publisher identit
 
 ### Starter content and startup import
 
-The bundled library has 11 sets, 93 unique notes and 273 active cards. A fresh database stores
-433 card rows, including disabled directions retained for stable identity and existing history.
+The bundled library has six sets, 88 unique notes and 299 active cards. A fresh database stores
+449 card rows, including disabled directions retained for stable identity and existing history.
+Existing databases can also contain archived content, authored notes and retained legacy drills.
 
 | Content | Notes | Active cards |
 |---|---:|---:|
 | Standard amino acids | 20 | 140 |
 | Monosaccharides | 9 | 27 |
 | Post-translational modifications | 14 | 42 |
-| O-GalNAc glycan motifs | 6 | 12 |
-| Glycosylation reference | 18 | 0 |
-| Six MS/proteomics topics | 26 | 52 |
+| Glycan motifs | 15 | 30 |
+| Mass spec concepts | 22 | 44 |
+| Peptide fragmentation | 8 | 16 |
 
 The amino-acid set has seven enabled templates per note:
 
@@ -157,17 +158,24 @@ seed-derived sets and note types become fully editable in the app.
 
 The original monosaccharide refresh is an append-only SQL migration. The PTM, MS, and glycan
 refresh uses `seed_refresh.rs` with immutable original YAML in `seed_baselines/` and receipts
-created by migration `0006_visual_study_sets.sql`. Each field is replaced or removed only when
-it still equals its original value; missing new fields are filled once. Authored replacements,
-status, timestamps, studied status, schedules, and review/game logs survive. Old seed drill
+created by migration `0006_visual_study_sets.sql`. A second immutable snapshot supports the
+later glycan salvage and fragmentation updates. Each field is replaced or removed only when
+it still equals the matching snapshot value; missing new fields are filled once. Authored
+replacements, status, timestamps, studied status, schedules, and review/game logs survive. Old seed drill
 cards are disabled in place, while authored legacy drill cards retain their enablement.
 PTMs with edited SMILES retain their existing example/context and wait for an authored diagram,
 so the refresh cannot substitute a stock picture of different chemistry.
 
-The four existing O-GalNAc note IDs move to `GlycanMotif` and the new motif set, retaining old
-template IDs in disabled form. Existing MS notes keep their IDs while moving to topic sets.
-Subscribers to the old sets inherit the corresponding topic subscriptions once; later opt-outs
-stick. Refresh receipts survive note deletion so recreating an ID cannot reapply the old upgrade.
+The four original O-GalNAc note IDs and six reusable reference concepts move to `GlycanMotif`,
+retaining legacy template IDs in disabled form. Existing MS notes keep their IDs when the five
+concept topics merge; peptide fragmentation stays separate. Authored notes in the old MS sets
+follow the merged set, except existing fragmentation notes follow their own set.
+
+Subscriptions follow these moves once; later opt-outs stick. Superseded sets and twelve unused
+reference concepts are retired from the learner library without deleting stored notes, card
+states or logs. Custom reference notes remain available in **Your glycosylation notes**;
+the old reference set itself is retired. Refresh receipts survive note deletion so
+recreating an ID cannot reapply an old upgrade.
 
 ### Visual topic sets
 
@@ -195,19 +203,26 @@ to name, name to picture, and name to common sites. Mass and MS-detail templates
 but disabled for the seed notes. The drawings show connectivity, not complete reaction mechanisms
 or a fixed protonation state. The GG example is explicitly an analytical remnant after digestion.
 
-The O-GalNAc set has six motifs: Tn, a Neu5Ac-containing sialyl-Tn example, and cores 1–4. SNFG
-pictures show the connections and a consistent Ser/Thr attachment. Each note has a name,
-distinguishing feature and short context, with picture/name multiple choice in both directions.
-The former mixed glycan set keeps eighteen longer notes as **Glycosylation reference**, available
-in Browse with no active seed drills.
+**Glycan motifs** has fifteen notes: the six O-GalNAc motifs (Tn, a Neu5Ac-containing sialyl-Tn
+example, and cores 1–4), the N-glycan core, representative high-mannose/complex/hybrid N-glycans,
+core α1-6 fucosylation, O-GlcNAc, LacNAc, and α2-3/α2-6 sialyl-LacNAc. SNFG pictures specify
+linkages and attachment where relevant. Larger glycans are representative structures, not
+claims that a glycan class has only one structure. Each note has a name, family, distinguishing
+feature and brief context, with picture/name multiple choice in both directions. The former
+reference paragraphs are replaced by this visual treatment where it works and retired otherwise.
 
-The MS/proteomics notes share the `Term` schema across six coherent sets: Reading mass spectra
-(4 notes), LC and ionization (4), Mass analyzers (3), MS scans and acquisition (5), Peptide
-fragmentation (4), and Proteomics workflow (6). Each has a schematic, short definition, function
-and key fact where useful; symbols/abbreviations are optional. Picture/name multiple choice runs
-in both directions. Old definition template IDs remain disabled for the seed notes. Diagrams
-are teaching schematics rather than measured spectra or scale drawings; sources are recorded
-with the content.
+The MS/proteomics notes share the `Term` schema across two sets. **Mass spec concepts** combines
+reading spectra (4 notes), LC and ionization (4), analyzers (3), scans and acquisition (5), and
+workflow (6). **Peptide fragmentation** has eight notes: a, b, x and y ions, a/x and b/y cleavage,
+ion-trap CID and HCD. Backbone diagrams distinguish the Cα–C(=O) cleavage associated with a/x
+fragments from the C(=O)–N cleavage associated with b/y fragments, and show which terminus is
+retained. Complementary series names do not imply that both charged fragments are observed
+from every dissociation event.
+
+Each MS note has a schematic, short definition, function and key fact where useful;
+symbols/abbreviations are optional. Picture/name multiple choice runs in both directions.
+Old definition template IDs remain disabled for the seed notes. Diagrams are teaching
+schematics rather than measured spectra or scale drawings; sources are recorded with the content.
 
 ## 4. Current architecture and storage
 
@@ -232,6 +247,8 @@ Phone / desktop browser                  Rust server
 - `cards.content_available` is separate from `cards.enabled`; reconciliation updates content
   availability while preserving enablement. `seed_content_refreshes` records one-time content
   upgrades and topic subscription moves.
+- `sets.retired` keeps superseded collections in storage while excluding them from learner
+  lists, Study, Review and Game. Retirement preserves note/card identities and existing logs.
 - The server controls time through `AppState::now()`, allowing tests to use a fixed clock.
   Migrations are append-only, and API tests use in-memory databases and a mock AI endpoint.
 - The PWA caches the interface and RDKit assets. API calls still require connectivity to the
@@ -355,7 +372,7 @@ prioritized. The current author review and draft/publish workflow remains in pla
 ## 8. Delivery order and deferred work
 
 1. **Implemented foundation:** Rust scheduler and server, Study/Review, Browse, memory game,
-   eleven topic sets, visual multiple choice, detailed-diagram enlargement, guarded content
+   six topic sets, visual multiple choice, detailed-diagram enlargement, guarded content
    refreshes, basic note authoring, uploads, and optional AI drafting.
 2. **Next: users and access.** Authentication, `learner`/`content-author`, isolated progress,
    learner content visibility, and migration of the existing local account.

@@ -31,7 +31,7 @@ impl TestApp {
     async fn build(claude: Option<Claude>) -> Self {
         let pool = open_db("sqlite::memory:").await.unwrap();
         let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
-        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 11);
+        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 6);
         let now = Arc::new(Mutex::new(Utc.with_ymd_and_hms(2026, 10, 23, 12, 0, 0).unwrap()));
         let clock_now = now.clone();
         let media_dir = std::env::temp_dir().join(format!("srs-media-{}", std::process::id()));
@@ -157,9 +157,9 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
     // Old directions remain as inactive records alongside the new visual cards.
-    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 93);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 433);
-    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 93);
+    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 88);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 449);
+    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 88);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
 }
@@ -565,18 +565,18 @@ async fn images_upload_and_are_served_with_a_strict_csp() {
 }
 
 #[tokio::test]
-async fn vocabulary_set_is_imported_but_not_subscribed() {
+async fn mass_spec_concepts_are_imported_but_not_subscribed() {
     let t = TestApp::new().await;
     let sets = t.get("/api/sets").await;
     let vocab = sets
         .as_array()
         .unwrap()
         .iter()
-        .find(|s| s["id"] == "ms-vocabulary")
+        .find(|s| s["id"] == "mass-spec-concepts")
         .unwrap();
     assert_eq!(vocab["subscribed"], false);
-    assert_eq!(vocab["note_count"], 4);
-    assert_eq!(vocab["card_count"], 8);
+    assert_eq!(vocab["note_count"], 22);
+    assert_eq!(vocab["card_count"], 44);
 }
 
 #[tokio::test]
@@ -705,7 +705,7 @@ async fn drafting_is_off_without_an_api_key() {
     assert_eq!(t.get("/api/draft/status").await["available"], false);
     let (status, v) = t
         .post(
-            "/api/sets/ms-vocabulary/draft",
+            "/api/sets/mass-spec-concepts/draft",
             json!({ "source": "ion mobility" }),
         )
         .await;
@@ -732,7 +732,7 @@ async fn drafted_notes_wait_as_drafts_until_published() {
 
     let (status, v) = t
         .post(
-            "/api/sets/ms-vocabulary/draft",
+            "/api/sets/mass-spec-concepts/draft",
             json!({ "source": "ion mobility terms", "count": 3 }),
         )
         .await;
@@ -777,7 +777,7 @@ async fn drafted_notes_wait_as_drafts_until_published() {
     let (status, _) = t
         .call(
             "PUT",
-            "/api/sets/ms-vocabulary/subscription",
+            "/api/sets/mass-spec-concepts/subscription",
             Some(json!({ "subscribed": true })),
         )
         .await;
@@ -802,7 +802,9 @@ async fn drafted_notes_wait_as_drafts_until_published() {
     }
     assert!(!seen_ids.iter().any(|id| id == "term-ion-mobility"));
 
-    let (status, v) = t.post("/api/sets/ms-vocabulary/publish-drafts", json!({})).await;
+    let (status, v) = t
+        .post("/api/sets/mass-spec-concepts/publish-drafts", json!({}))
+        .await;
     assert_eq!(status, StatusCode::OK, "{v}");
     assert_eq!(v["published"], 1);
     assert_eq!(t.get("/api/notes/term-ion-mobility").await["status"], "published");
@@ -817,7 +819,10 @@ async fn refusals_and_api_errors_are_reported_plainly() {
     .await;
     let t = TestApp::with_claude(url).await;
     let (status, v) = t
-        .post("/api/sets/ms-vocabulary/draft", json!({ "source": "anything" }))
+        .post(
+            "/api/sets/mass-spec-concepts/draft",
+            json!({ "source": "anything" }),
+        )
         .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{v}");
     assert!(v["error"].as_str().unwrap().contains("declined"));
@@ -829,7 +834,10 @@ async fn refusals_and_api_errors_are_reported_plainly() {
     .await;
     let t = TestApp::with_claude(url).await;
     let (status, v) = t
-        .post("/api/sets/ms-vocabulary/draft", json!({ "source": "anything" }))
+        .post(
+            "/api/sets/mass-spec-concepts/draft",
+            json!({ "source": "anything" }),
+        )
         .await;
     assert_eq!(status, StatusCode::BAD_GATEWAY, "{v}");
     assert!(v["error"].as_str().unwrap().contains("Overloaded"));
@@ -843,7 +851,11 @@ async fn client_routes_are_served_the_app_shell() {
     std::fs::write(web.join("index.html"), "<html>shell</html>").unwrap();
     let router = app(AppState::new(pool, web.join("media")), Some(web));
     let res = router
-        .oneshot(Request::get("/sets/ms-vocabulary").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::get("/sets/mass-spec-concepts")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);

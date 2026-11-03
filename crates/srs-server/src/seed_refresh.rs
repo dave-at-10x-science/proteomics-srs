@@ -11,7 +11,8 @@ use crate::error::ApiResult;
 use crate::store::{self, StoredNote};
 
 const REFRESH: &str = "visual-study-sets-2026-11-03";
-const REORGANIZE: &str = "visual-study-topics-2026-11-03";
+const CURATE: &str = "curated-study-content-2026-11-03";
+const REORGANIZE: &str = "curated-study-library-2026-11-03";
 
 // These immutable originals distinguish seed values from edits made in the app.
 fn baselines() -> &'static BTreeMap<String, (String, Note)> {
@@ -21,6 +22,25 @@ fn baselines() -> &'static BTreeMap<String, (String, Note)> {
             include_str!("seed_baselines/ptms.yaml"),
             include_str!("seed_baselines/ms-vocabulary.yaml"),
             include_str!("seed_baselines/glycans.yaml"),
+        ]
+        .into_iter()
+        .flat_map(|source| {
+            let file = SetFile::from_yaml(source).expect("embedded seed baseline is valid");
+            file.notes
+                .into_iter()
+                .map(move |note| (note.id.clone(), (file.note_type.id.clone(), note)))
+        })
+        .collect()
+    })
+}
+
+fn curated_baselines() -> &'static BTreeMap<String, (String, Note)> {
+    static NOTES: OnceLock<BTreeMap<String, (String, Note)>> = OnceLock::new();
+    NOTES.get_or_init(|| {
+        [
+            include_str!("seed_baselines/glycosylation-reference-v1.yaml"),
+            include_str!("seed_baselines/glycan-motifs-v1.yaml"),
+            include_str!("seed_baselines/fragmentation-v1.yaml"),
         ]
         .into_iter()
         .flat_map(|source| {
@@ -59,6 +79,9 @@ pub async fn remember_new_note(db: &mut SqliteConnection, note: &str) -> ApiResu
     if baselines().contains_key(note) {
         remember(db, REFRESH, note).await?;
     }
+    if curated_baselines().contains_key(note) {
+        remember(db, CURATE, note).await?;
+    }
     Ok(())
 }
 
@@ -70,13 +93,30 @@ pub async fn refresh_note(
     note_type: &NoteType,
     updated: &Note,
 ) -> ApiResult<bool> {
-    let Some((old_type, original)) = baselines().get(&updated.id) else {
-        return Ok(existing.note_type_id == note_type.id);
-    };
-    if existing.note_type_id != *old_type && existing.note_type_id != note_type.id {
+    let mut matches = existing.note_type_id == note_type.id;
+    if let Some((old_type, original)) = baselines().get(&updated.id) {
+        matches = apply_refresh(db, existing, note_type, updated, old_type, original, REFRESH).await?;
+    }
+    if let Some((old_type, original)) = curated_baselines().get(&updated.id) {
+        let existing = store::note(&mut *db, &updated.id).await?;
+        matches = apply_refresh(db, &existing, note_type, updated, old_type, original, CURATE).await?;
+    }
+    Ok(matches)
+}
+
+async fn apply_refresh(
+    db: &mut SqliteConnection,
+    existing: &StoredNote,
+    note_type: &NoteType,
+    updated: &Note,
+    old_type: &str,
+    original: &Note,
+    receipt: &str,
+) -> ApiResult<bool> {
+    if existing.note_type_id != old_type && existing.note_type_id != note_type.id {
         return Ok(false);
     }
-    if recorded(db, REFRESH, &updated.id).await? {
+    if recorded(db, receipt, &updated.id).await? {
         return Ok(existing.note_type_id == note_type.id);
     }
 
@@ -113,22 +153,15 @@ pub async fn refresh_note(
             .execute(&mut *db)
             .await?;
     }
-    remember(db, REFRESH, &updated.id).await?;
+    remember(db, receipt, &updated.id).await?;
     Ok(true)
 }
 
 pub async fn finish_import(pool: &SqlitePool) -> ApiResult<()> {
     let mut tx = pool.begin().await?;
-    let destinations = [
-        ("ms-vocabulary", "ms-ionization", "Term"),
-        ("ms-vocabulary", "ms-analyzers", "Term"),
-        ("ms-vocabulary", "ms-acquisition", "Term"),
-        ("ms-vocabulary", "ms-fragmentation", "Term"),
-        ("ms-vocabulary", "ms-workflow", "Term"),
-        ("glycans", "glycan-motifs", "GlycoConcept"),
-    ];
+    let destinations = ["mass-spec-concepts", "ms-fragmentation", "glycan-motifs"];
     let mut all_present = true;
-    for (_, destination, _) in destinations {
+    for destination in destinations {
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ?")
             .bind(destination)
             .fetch_one(&mut *tx)
@@ -136,30 +169,94 @@ pub async fn finish_import(pool: &SqlitePool) -> ApiResult<()> {
         all_present &= count != 0;
     }
     if all_present && !recorded(&mut tx, REORGANIZE, "sets").await? {
-        for (source, destination, old_type) in destinations {
-            // Follow the topics the learner already selected, once. Later opt-outs stick.
+        for source in [
+            "ms-vocabulary",
+            "ms-ionization",
+            "ms-analyzers",
+            "ms-acquisition",
+            "ms-workflow",
+        ] {
+            // Follow selected topics once. Old all-in-one libraries also included fragmentation.
             sqlx::query(
                 "INSERT INTO subscriptions (user_id, set_id)
                  SELECT user_id, ? FROM subscriptions WHERE set_id = ? ON CONFLICT DO NOTHING",
             )
-            .bind(destination)
+            .bind("mass-spec-concepts")
             .bind(source)
             .execute(&mut *tx)
             .await?;
-            let ids: Vec<String> = sqlx::query_scalar("SELECT note_id FROM set_notes WHERE set_id = ?")
-                .bind(destination)
+            sqlx::query(
+                "INSERT INTO subscriptions (user_id, set_id)
+                 SELECT DISTINCT s.user_id, 'ms-fragmentation' FROM subscriptions s
+                 JOIN set_notes old ON old.set_id = s.set_id
+                 JOIN set_notes current ON current.note_id = old.note_id AND current.set_id = 'ms-fragmentation'
+                 WHERE s.set_id = ? ON CONFLICT DO NOTHING",
+            )
+            .bind(source)
+            .execute(&mut *tx)
+            .await?;
+            let ids: Vec<String> = sqlx::query_scalar(
+                "SELECT old.note_id FROM set_notes old WHERE old.set_id = ?
+                 AND NOT EXISTS (SELECT 1 FROM set_notes current
+                     WHERE current.note_id = old.note_id AND current.set_id = 'ms-fragmentation')
+                 ORDER BY old.position",
+            )
+            .bind(source)
+            .fetch_all(&mut *tx)
+            .await?;
+            for id in ids {
+                store::add_to_set(&mut tx, "mass-spec-concepts", &id).await?;
+            }
+            sqlx::query("UPDATE sets SET retired = 1 WHERE id = ?")
+                .bind(source)
+                .execute(&mut *tx)
+                .await?;
+        }
+        // The first visual upgrade already inherited this subscription; respect later opt-outs.
+        if !recorded(&mut tx, "visual-study-topics-2026-11-03", "sets").await? {
+            sqlx::query(
+                "INSERT INTO subscriptions (user_id, set_id)
+                 SELECT user_id, 'glycan-motifs' FROM subscriptions WHERE set_id = 'glycans'
+                 ON CONFLICT DO NOTHING",
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        // Seed reference paragraphs leave the library. Keep separately authored notes usable.
+        let references: Vec<String> =
+            sqlx::query_scalar("SELECT note_id FROM set_notes WHERE set_id = 'glycans' ORDER BY position")
                 .fetch_all(&mut *tx)
                 .await?;
-            for id in ids {
-                if baselines().get(&id).is_some_and(|(kind, _)| kind == old_type) {
-                    sqlx::query("DELETE FROM set_notes WHERE set_id = ? AND note_id = ?")
-                        .bind(source)
-                        .bind(&id)
-                        .execute(&mut *tx)
-                        .await?;
-                }
+        let authored: Vec<_> = references
+            .into_iter()
+            .filter(|id| {
+                !baselines()
+                    .get(id)
+                    .is_some_and(|(kind, _)| kind == "GlycoConcept")
+            })
+            .collect();
+        if !authored.is_empty() {
+            sqlx::query(
+                "INSERT INTO sets (id, name) VALUES ('glycosylation-authored', 'Your glycosylation notes')
+                 ON CONFLICT DO NOTHING",
+            )
+            .execute(&mut *tx)
+            .await?;
+            for id in authored {
+                store::add_to_set(&mut tx, "glycosylation-authored", &id).await?;
             }
+            sqlx::query(
+                "INSERT INTO subscriptions (user_id, set_id)
+                 SELECT user_id, 'glycosylation-authored' FROM subscriptions WHERE set_id = 'glycans'
+                 ON CONFLICT DO NOTHING",
+            )
+            .execute(&mut *tx)
+            .await?;
         }
+        sqlx::query("UPDATE sets SET retired = 1 WHERE id = 'glycans'")
+            .execute(&mut *tx)
+            .await?;
         remember(&mut tx, REORGANIZE, "sets").await?;
     }
 
