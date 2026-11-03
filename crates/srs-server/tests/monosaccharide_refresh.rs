@@ -6,6 +6,7 @@ use srs_server::seed;
 
 const REFRESH: &str = include_str!("../migrations/0005_refresh_monosaccharide_visuals.sql");
 const UPDATED_SEED: &str = include_str!("../../../seed/monosaccharides/monosaccharides.yaml");
+const SYMBOL_SEED: &str = include_str!("../src/seed_baselines/monosaccharides-v1.yaml");
 const LEGACY_TIME: &str = "2026-10-23T12:00:00Z";
 
 // Original imported values, before visual symbols and shorter contexts were introduced.
@@ -38,6 +39,7 @@ async fn legacy_database() -> SqlitePool {
         include_str!("../migrations/0004_uppercase_three_letter_codes.sql"),
         include_str!("../migrations/0006_visual_study_sets.sql"),
         include_str!("../migrations/0007_curate_study_library.sql"),
+        include_str!("../migrations/0008_study_order.sql"),
     ] {
         sqlx::raw_sql(migration).execute(&pool).await.unwrap();
     }
@@ -87,8 +89,8 @@ async fn fields(pool: &SqlitePool, id: &str) -> Value {
     serde_json::from_str(&fields).unwrap()
 }
 
-async fn assert_seed_fields(pool: &SqlitePool) {
-    let seed = SetFile::from_yaml(UPDATED_SEED).unwrap();
+async fn assert_seed_fields(pool: &SqlitePool, expected: &str) {
+    let seed = SetFile::from_yaml(expected).unwrap();
     for note in seed.notes {
         assert_eq!(
             fields(pool, &note.id).await,
@@ -107,7 +109,7 @@ async fn refresh_allows_a_fresh_database_to_import_the_updated_seed() {
         .await
         .unwrap();
 
-    assert_seed_fields(&pool).await;
+    assert_seed_fields(&pool, UPDATED_SEED).await;
     let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM cards WHERE enabled = 1")
         .fetch_one(&pool)
         .await
@@ -128,7 +130,7 @@ async fn refresh_updates_original_fields_once_without_changing_note_metadata() {
     }
 
     sqlx::raw_sql(REFRESH).execute(&pool).await.unwrap();
-    assert_seed_fields(&pool).await;
+    assert_seed_fields(&pool, SYMBOL_SEED).await;
     let unchanged_metadata: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM notes WHERE status = 'published' AND created_at = ? AND updated_at = ?",
     )

@@ -12,6 +12,8 @@ is a local, single-user spaced repetition app for proteomics and mass spectromet
 (Axum + SQLite) serves a JSON API and a Nuxt SPA that is used mostly on a phone. Cards are
 scheduled with FSRS. New notes are read in **Study**, then their cards enter **Review** rounds.
 A memory game and Browse mode never touch the schedule. Optional AI drafting calls the Claude API.
+Study order is a per-user setting: set order by default, or a fresh shuffle across all eligible
+new concepts before each batch is chosen. Keep a batch's order stable while it is being studied.
 
 The starter library has six sets, 88 unique notes and 299 active cards (449 stored card rows,
 including disabled directions): amino acids, monosaccharides, PTMs, glycan motifs, mass spec
@@ -81,6 +83,10 @@ Use Rust for new processing and reusable content tools; the existing Python seed
 
 - **Card identity is `(note_id, template_id)`.** Review history hangs off it. Renaming a note id
   or template id in a seed file orphans the history for those cards.
+- **Re-enabling a studied set offers resume or restart.** Restart clears the current user's
+  study markers, schedules and review logs for that set's note IDs in the same transaction as
+  subscribing. Shared concepts restart across memberships; unrelated notes, other users and
+  memory-game results stay. Clear the browser's saved review round only after a successful restart.
 - **Seed import runs on every start.** Note types and sets are overwritten from the YAML; ordinary
   imports insert missing notes and preserve existing fields/status. Explicit one-time upgrades
   compare immutable originals in `seed_baselines/`, replace only unchanged fields, and fill new

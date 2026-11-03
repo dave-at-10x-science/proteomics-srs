@@ -81,6 +81,7 @@ async fn legacy_database() -> SqlitePool {
         include_str!("../migrations/0004_uppercase_three_letter_codes.sql"),
         include_str!("../migrations/0005_refresh_monosaccharide_visuals.sql"),
         include_str!("../migrations/0007_curate_study_library.sql"),
+        include_str!("../migrations/0008_study_order.sql"),
     ] {
         sqlx::raw_sql(sql).execute(&pool).await.unwrap();
     }

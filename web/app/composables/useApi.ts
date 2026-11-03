@@ -16,6 +16,7 @@ import type {
   Settings,
   StoredNote,
   StudyBatch,
+  SubscriptionProgress,
 } from '~/types/api';
 
 type Fields = Record<string, FieldValue>;
@@ -35,8 +36,8 @@ export function useApi() {
     answer: (body: { note_id: string; template_id: string; rating: Rating; duration_ms?: number; answer?: string }) =>
       $fetch<{ next: NextResponse }>('/api/review/answer', { method: 'POST', body }),
     sets: () => $fetch<SetSummary[]>('/api/sets'),
-    subscribe: (id: string, subscribed: boolean) =>
-      $fetch(`/api/sets/${encodeURIComponent(id)}/subscription`, { method: 'PUT', body: { subscribed } }),
+    subscribe: (id: string, subscribed: boolean, progress?: SubscriptionProgress) =>
+      $fetch(`/api/sets/${encodeURIComponent(id)}/subscription`, { method: 'PUT', body: { subscribed, progress } }),
     settings: () => $fetch<Settings>('/api/settings'),
     resetProgress: () => $fetch<{ reviews_removed: number }>('/api/progress/reset', { method: 'POST' }),
     saveSettings: (s: Settings) => $fetch<Settings>('/api/settings', { method: 'PUT', body: s }),

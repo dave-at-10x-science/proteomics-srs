@@ -38,6 +38,31 @@ all fields visible. The default batch size is five notes. Finishing the batch ma
 studied and makes their usable enabled cards eligible for review. Publishing a new note does
 not mark it studied. Retired sets do not enter the Study queue.
 
+Switching a set off preserves its progress. Switching it back on prompts **Resume**, **Start
+over**, or **Cancel** if any note has previous Study or Review progress. Resume retains the
+learner's schedules and history. Start over clears the current learner's studied status, card
+states, and review log for every note currently in that set, then enables it atomically. The
+content, authored edits, settings, other notes, other users, and memory-game bests stay intact.
+Cancel or closing the prompt leaves the set off.
+
+Progress belongs to a note/card, not to its set membership: restarting a shared note also
+resets its progress when reached through another set. After a successful restart, the browser
+discards its saved Review round so the reset concepts return through Study.
+
+`SetSummary.studied_count` counts distinct notes in the set with a `studied_notes` row, card
+state, or review-log entry for the current user. The UI prompts only on an off-to-on transition
+with a nonzero count. `PUT /api/sets/{id}/subscription` accepts optional `progress: "resume" |
+"restart"`; omitting it resumes for API compatibility. Restart applies only when enabling an
+off set. A restart request for an already-enabled set, or with `subscribed: false`, returns 422
+without changing progress. The API does not require a separate prompt step.
+
+Settings offers **New concept order**: **Set order** (the default) groups notes by set, while
+**Random** shuffles every eligible unstudied note across the selected sets before taking a
+batch. A batch can contain several topics. Each requested batch gets a fresh shuffle in
+Random mode; navigating within the current batch keeps its order
+stable. The preference is stored per user as `study_order` (`set_order` or `random`) and saved
+together with review settings. It is separate from the random selection of due Review cards.
+
 There is no enforced daily new-card limit. A legacy `new_per_day` setting remains in storage
 and the settings API, but Study batches control introduction of new material.
 
@@ -84,9 +109,9 @@ A magnifier on a revealed detailed picture opens `DiagramPreview` at a larger si
 has the generic title **Diagram**, without the note's name. The preview button is separate
 from the flip button and is absent on hidden tiles; it does not change flips, matches or timers.
 
-Settings includes target retention, an optional review cap, theme selection, and a confirmed
-progress reset. Reset clears the current user's studied notes, schedules, review log, and game
-results while keeping content, subscriptions, and settings.
+Settings includes new-concept order, target retention, an optional review cap, theme selection,
+and a confirmed global progress reset. Reset clears the current user's studied notes, schedules,
+review log, and game results while keeping content, subscriptions, and settings.
 
 ## 3. Current content and authoring
 
@@ -191,11 +216,20 @@ default is picture → name, supplemented by name → picture multiple choice an
 directions where applicable. Memory pairs can match pictures to names or codes. Shared
 categories and masses do not uniquely identify items and should not be used as identity cues.
 
-The monosaccharide pilot has nine actual SNFG symbols, a name, abbreviation, composition class,
-and a short context sentence per note. Three active directions focus on identity: name →
+The monosaccharide set has nine actual SNFG symbols, a name, abbreviation, composition class,
+and a short context sentence per note. An optional `smiles` field supplies a second picture:
+`chemical_structure`, a derived image labeled **Skeletal structure**. Optional `structure_form`
+text labeled **Form shown** names the particular free cyclic form, including the anomer,
+D/L configuration and ring form used in the drawing. The SNFG symbol represents monosaccharide
+identity without fixing that illustrated anomer. Study and Browse label multiple pictures,
+and the chemical drawing keeps enough space for stereochemical detail.
+
+Three active directions continue to focus on SNFG identity: name →
 abbreviation, name → picture, and picture → name. Neu5Ac/Neu5Gc accept common NeuAc/NeuGc aliases.
 The old mass and composition-class template IDs remain disabled to preserve their histories;
-their drills are also omitted from memory pairings.
+their drills are also omitted from memory pairings. Skeletal drawings are supporting material,
+with no additional quiz or memory-game direction. A one-time field refresh adds them to existing
+seed notes while preserving authored fields, note/card identities, and learning progress.
 
 The PTM set uses fourteen representative before-and-after connectivity diagrams, common sites,
 an example residue, a short chemical change and brief context. Active directions are picture

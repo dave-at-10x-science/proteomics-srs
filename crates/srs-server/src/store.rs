@@ -30,31 +30,57 @@ fn parse_phase(s: &str) -> Phase {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StudyOrder {
+    #[default]
+    SetOrder,
+    Random,
+}
+
+impl StudyOrder {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::SetOrder => "set_order",
+            Self::Random => "random",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub new_per_day: u32,
     pub reviews_per_day: Option<u32>,
     pub desired_retention: f32,
+    #[serde(default)]
+    pub study_order: StudyOrder,
 }
 
 pub async fn settings(pool: &SqlitePool, user: i64) -> ApiResult<Settings> {
-    let row = sqlx::query("SELECT new_per_day, reviews_per_day, desired_retention FROM users WHERE id = ?")
-        .bind(user)
-        .fetch_optional(pool)
-        .await?
-        .ok_or_else(|| ApiError::NotFound(format!("user {user}")))?;
+    let row = sqlx::query(
+        "SELECT new_per_day, reviews_per_day, desired_retention, study_order FROM users WHERE id = ?",
+    )
+    .bind(user)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| ApiError::NotFound(format!("user {user}")))?;
     Ok(Settings {
         new_per_day: row.get::<i64, _>(0) as u32,
         reviews_per_day: row.get::<Option<i64>, _>(1).map(|v| v as u32),
         desired_retention: row.get::<f64, _>(2) as f32,
+        study_order: match row.get::<&str, _>(3) {
+            "random" => StudyOrder::Random,
+            _ => StudyOrder::SetOrder,
+        },
     })
 }
 
 pub async fn save_settings(pool: &SqlitePool, user: i64, s: &Settings) -> ApiResult<()> {
-    sqlx::query("UPDATE users SET new_per_day = ?, reviews_per_day = ?, desired_retention = ? WHERE id = ?")
+    sqlx::query("UPDATE users SET new_per_day = ?, reviews_per_day = ?, desired_retention = ?, study_order = ? WHERE id = ?")
         .bind(s.new_per_day as i64)
         .bind(s.reviews_per_day.map(|v| v as i64))
         .bind(s.desired_retention as f64)
+        .bind(s.study_order.as_str())
         .bind(user)
         .execute(pool)
         .await?;
@@ -186,6 +212,22 @@ pub async fn reset_progress(pool: &SqlitePool, user: i64) -> ApiResult<u64> {
     }
     tx.commit().await?;
     Ok(reviews)
+}
+
+/// Restart this set's concepts for one learner. The caller enables the set in the same transaction.
+/// Note identity is shared across sets, so progress for a shared concept restarts everywhere.
+pub async fn restart_set_progress(db: &mut sqlx::SqliteConnection, user: i64, set_id: &str) -> ApiResult<()> {
+    for table in ["card_state", "review_log", "studied_notes"] {
+        sqlx::query(&format!(
+            "DELETE FROM {table} WHERE user_id = ?
+             AND note_id IN (SELECT note_id FROM set_notes WHERE set_id = ?)"
+        ))
+        .bind(user)
+        .bind(set_id)
+        .execute(&mut *db)
+        .await?;
+    }
+    Ok(())
 }
 
 /// The first active set (by id) containing the note.

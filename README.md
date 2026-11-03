@@ -3,8 +3,8 @@
 spectrometry.
 
 A daily study tool: a short queue of due cards on your phone, scheduled with FSRS, plus a
-matching-pairs memory game for practice. Amino-acid structures are drawn from SMILES; other
-topics use local diagrams. See
+matching-pairs memory game for practice. Amino-acid and monosaccharide structures are drawn
+from SMILES; other topics use local diagrams. See
 [docs/design-proposal.md](docs/design-proposal.md) for the current design and roadmap.
 
 The current app runs locally for one learner, with authoring available to that user. Next are
@@ -59,6 +59,17 @@ haven't seen (5 by default) with every field shown. When you finish the batch, a
 notes' cards join your review rotation. Each card is scheduled on its own, so an amino acid's
 name, three-letter code and one-letter code come due independently.
 
+Settings → **Study → New concept order** chooses how new batches are assembled. **Set order**
+is the default and groups concepts by set. **Random** shuffles all eligible unstudied concepts
+across your selected sets before taking the batch, so a batch can mix topics. Random mode gives
+each new batch a fresh shuffle; the current batch stays in order while you study it.
+
+Switching a set off keeps your progress. When you switch it back on and it has previous Study
+or Review progress, choose **Resume**, **Start over**, or **Cancel**. Resume keeps the existing
+schedules. Start over clears your studied status, schedules, and review history for that set,
+so its concepts return to Study; cards, edits, settings, and memory-game bests stay. Cancel
+leaves the set off. A concept shared by multiple sets is reset in all of its memberships.
+
 **Review** happens in rounds. Pick a size (10 by default); the round is drawn from the studied
 cards that are due, at random if more are due than fit. Each card is shown once per round, and one
 you miss comes back in a later round. Do as many rounds as you like; due cards never expire, they
@@ -70,8 +81,11 @@ show four pictures: the correct structure and up to three distinct, randomly cho
 distractors from the same set. Their positions are shuffled. The 20 amino-acid notes now
 generate 140 cards, keeping the original directions alongside this new one.
 
-The monosaccharide pilot uses nine locally bundled [SNFG symbols](https://www.ncbi.nlm.nih.gov/glycans/snfg.html),
-with names, abbreviations, composition classes, and short context. Its three active directions
+The monosaccharide set uses nine locally bundled [SNFG symbols](https://www.ncbi.nlm.nih.gov/glycans/snfg.html),
+with names, abbreviations, composition classes, and short context. Each also shows a skeletal
+drawing rendered from stereochemical SMILES. **Form shown** names the illustrated free cyclic
+form, including its anomer and stereochemistry; the SNFG symbol represents the monosaccharide
+identity. Study and Browse label both pictures. Its three active directions
 are name → abbreviation, name → picture, and picture → name. NeuAc/NeuGc are accepted alongside
 Neu5Ac/Neu5Gc. Abbreviation cards belong only in note types where abbreviations are useful.
 The former mass and composition-class drills are disabled, with their schedules/history kept.
@@ -122,6 +136,9 @@ added, and ordinary imports preserve existing note fields and status.
 A one-time migration refreshes the original monosaccharide seed fields in existing libraries.
 Each field changes only if it still matches its old seed value; authored replacements survive.
 No progress reset is needed. As with other migrations, it runs automatically at server startup.
+The added skeletal structures use a guarded one-time field refresh as well, preserving authored
+fields and existing study/review progress. The nine notes and 27 active cards keep their identities;
+the new drawings are supporting facts rather than additional quiz directions.
 
 The PTM, MS, and glycan upgrades also apply once at startup, comparing each existing field with
 an immutable copy of the old seed. Original values are refreshed and missing new fields filled;
@@ -166,15 +183,15 @@ a fallback model instead of returning the refusal.
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/study/batch` | `?size=` (default 5) the next notes not studied yet, and how many remain |
+| GET | `/api/study/batch` | `?size=` (default 5) the next notes not studied yet, ordered by the learner's Study setting, and how many remain |
 | POST | `/api/study/studied` | `{note_ids}` mark notes studied, putting their cards into review |
 | GET | `/api/review/round` | `?size=` (default 10) counts of what's due, notes not studied yet, and a random round of due cards |
 | GET | `/api/review/card` | `?note_id=&template_id=` one card with shuffled choices; illustration choices contain image URLs or source SMILES, rendered using the answer field definition |
 | GET | `/api/review/next` | Today's counts and the next card, with everything needed to render it |
 | POST | `/api/review/check` | Check an answer: `{note_id, template_id, input}`; derived illustrations use their source value as input |
 | POST | `/api/review/answer` | Submit a rating (`again`/`hard`/`good`/`easy`); returns the next card |
-| GET/POST | `/api/sets` | List current sets (retired collections omitted), create a set |
-| PUT | `/api/sets/{id}/subscription` | `{subscribed: bool}` |
+| GET/POST | `/api/sets` | List current sets (retired collections omitted), create a set; `studied_count` counts distinct notes with Study status, card state, or review history for the current user |
+| PUT | `/api/sets/{id}/subscription` | `{subscribed: bool, progress?: "resume" \| "restart"}`; defaults to resume; restart resets this user's Study/Review progress only when switching an off set on |
 | GET | `/api/sets/{id}/notes` | Notes in a set |
 | POST | `/api/sets/{id}/draft` | Draft notes with Claude: `{source, count?, note_type_id?}`; returns `{created, skipped}` |
 | POST | `/api/sets/{id}/publish-drafts` | Publish every draft in the set |
@@ -186,7 +203,7 @@ a fallback model instead of returning the refusal.
 | GET | `/api/game/options` | Sets you can play (with studied-note counts) and their pairings |
 | GET | `/api/game/board` | `?set=&a=&b=&pairs=` a shuffled board of studied notes |
 | POST | `/api/game/results` | Record a game; returns personal bests |
-| GET/PUT | `/api/settings` | Review cap, target retention |
+| GET/PUT | `/api/settings` | Review cap, target retention, and `study_order` (`set_order` or `random`; default `set_order`) |
 | POST | `/api/progress/reset` | Start over: clears schedules, review history, studied notes and game results |
 
 ## Development

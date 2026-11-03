@@ -68,7 +68,8 @@ def main():
             if abs(calc - note["residue_mass_mono"]) > MASS_TOLERANCE:
                 problems.append(f"{note['id']}: residue mass {note['residue_mass_mono']} but SMILES gives {calc:.5f}")
         if tmpl is not None:
-            AllChem.GenerateDepictionMatching2DStructure(mol, tmpl)
+            # Match the app: valid molecules outside the shared core use their own layout.
+            AllChem.GenerateDepictionMatching2DStructure(mol, tmpl, acceptFailure=True)
         else:
             AllChem.Compute2DCoords(mol)
 

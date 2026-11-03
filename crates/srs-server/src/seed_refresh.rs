@@ -13,6 +13,7 @@ use crate::store::{self, StoredNote};
 const REFRESH: &str = "visual-study-sets-2026-11-03";
 const CURATE: &str = "curated-study-content-2026-11-03";
 const REORGANIZE: &str = "curated-study-library-2026-11-03";
+const SACCHARIDE_STRUCTURES: &str = "monosaccharide-structures-2026-11-03";
 
 // These immutable originals distinguish seed values from edits made in the app.
 fn baselines() -> &'static BTreeMap<String, (String, Note)> {
@@ -53,6 +54,18 @@ fn curated_baselines() -> &'static BTreeMap<String, (String, Note)> {
     })
 }
 
+fn monosaccharide_baselines() -> &'static BTreeMap<String, (String, Note)> {
+    static NOTES: OnceLock<BTreeMap<String, (String, Note)>> = OnceLock::new();
+    NOTES.get_or_init(|| {
+        let file = SetFile::from_yaml(include_str!("seed_baselines/monosaccharides-v1.yaml"))
+            .expect("embedded seed baseline is valid");
+        file.notes
+            .into_iter()
+            .map(|note| (note.id.clone(), (file.note_type.id.clone(), note)))
+            .collect()
+    })
+}
+
 async fn recorded(db: &mut SqliteConnection, refresh: &str, note: &str) -> ApiResult<bool> {
     let count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM seed_content_refreshes WHERE refresh_id = ? AND note_id = ?",
@@ -82,6 +95,9 @@ pub async fn remember_new_note(db: &mut SqliteConnection, note: &str) -> ApiResu
     if curated_baselines().contains_key(note) {
         remember(db, CURATE, note).await?;
     }
+    if monosaccharide_baselines().contains_key(note) {
+        remember(db, SACCHARIDE_STRUCTURES, note).await?;
+    }
     Ok(())
 }
 
@@ -100,6 +116,19 @@ pub async fn refresh_note(
     if let Some((old_type, original)) = curated_baselines().get(&updated.id) {
         let existing = store::note(&mut *db, &updated.id).await?;
         matches = apply_refresh(db, &existing, note_type, updated, old_type, original, CURATE).await?;
+    }
+    if let Some((old_type, original)) = monosaccharide_baselines().get(&updated.id) {
+        let existing = store::note(&mut *db, &updated.id).await?;
+        matches = apply_refresh(
+            db,
+            &existing,
+            note_type,
+            updated,
+            old_type,
+            original,
+            SACCHARIDE_STRUCTURES,
+        )
+        .await?;
     }
     Ok(matches)
 }
@@ -123,7 +152,13 @@ async fn apply_refresh(
     // The old PTM picture was derived from SMILES. A different chemical source needs the
     // author's own diagram, rather than a stock picture or new example-specific wording.
     let authored_chemistry = old_type == "PTM" && existing.note.get("smiles") != original.get("smiles");
-    let keep_example = |key: &str| authored_chemistry && matches!(key, "structure" | "example" | "note");
+    let authored_sugar = old_type == "Monosaccharide"
+        && existing.note.get("smiles").is_some()
+        && existing.note.get("smiles") != updated.get("smiles");
+    let keep_example = |key: &str| {
+        (authored_chemistry && matches!(key, "structure" | "example" | "note"))
+            || (authored_sugar && key == "structure_form")
+    };
     let mut fields = existing.note.fields.clone();
     for (key, old) in &original.fields {
         if keep_example(key) {
@@ -261,7 +296,7 @@ pub async fn finish_import(pool: &SqlitePool) -> ApiResult<()> {
     }
 
     // A shared type also applies to notes authored in the app, not just its seed notes.
-    for type_id in ["PTM", "Term", "GlycoConcept", "GlycanMotif"] {
+    for type_id in ["PTM", "Term", "GlycoConcept", "GlycanMotif", "Monosaccharide"] {
         let definition: Option<String> = sqlx::query_scalar("SELECT definition FROM note_types WHERE id = ?")
             .bind(type_id)
             .fetch_optional(&mut *tx)
