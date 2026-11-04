@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <title>Blue circle</title>
+  <!-- SNFG Tables 1 and 2: https://www.ncbi.nlm.nih.gov/glycans/snfg.html -->
+  <rect width="160" height="160" fill="#fff" />
+  <circle cx="80" cy="80" r="50" fill="#0072bc" stroke="#000" stroke-width="3" />
+</svg>

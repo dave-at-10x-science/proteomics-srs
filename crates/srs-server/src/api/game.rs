@@ -31,7 +31,7 @@ pub struct Pairing {
 pub fn pairings(note_type: &NoteType) -> Vec<Pairing> {
     let mut seen = HashSet::new();
     let mut out = Vec::new();
-    for t in &note_type.templates {
+    for t in note_type.templates.iter().filter(|t| t.enabled_by_default) {
         let (Some(a), Some(b)) = (t.prompt.first(), t.answer.first()) else {
             continue;
         };
@@ -81,7 +81,8 @@ pub async fn options(State(state): State<AppState>) -> ApiResult<Json<Vec<GameOp
          FROM sets s
          JOIN set_notes sn ON sn.set_id = s.id
          JOIN notes n ON n.id = sn.note_id AND n.status = 'published'
-         WHERE EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
+         WHERE s.retired = 0
+           AND EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
          GROUP BY s.id, n.note_type_id
          ORDER BY s.is_default DESC, s.name",
     )
@@ -91,11 +92,15 @@ pub async fn options(State(state): State<AppState>) -> ApiResult<Json<Vec<GameOp
     let mut out = Vec::new();
     for r in rows {
         let note_type = store::note_type(&state.pool, r.get("note_type_id")).await?;
+        let pairings = pairings(&note_type);
+        if pairings.is_empty() {
+            continue;
+        }
         out.push(GameOption {
             set_id: r.get("id"),
             set_name: r.get("name"),
             introduced: r.get::<i64, _>("introduced") as usize,
-            pairings: pairings(&note_type),
+            pairings,
         });
     }
     Ok(Json(out))
@@ -127,6 +132,13 @@ pub struct Board {
 }
 
 pub async fn board(State(state): State<AppState>, Query(q): Query<BoardQuery>) -> ApiResult<Json<Board>> {
+    let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
+        .bind(&q.set)
+        .fetch_one(&state.pool)
+        .await?;
+    if active == 0 {
+        return Err(ApiError::NotFound(format!("set `{}`", q.set)));
+    }
     let want = q.pairs.unwrap_or(8).clamp(MIN_PAIRS, MAX_PAIRS);
     let introduced: HashSet<String> = sqlx::query_scalar(
         "SELECT st.note_id FROM studied_notes st
@@ -318,8 +330,6 @@ mod tests {
                 ("structure", "one_letter"),
                 ("one_letter", "name"),
                 ("three_letter", "name"),
-                ("structure", "side_chain_class"),
-                ("name", "residue_mass_mono"),
             ]
         );
         assert_eq!(p[0].label, "Structure ↔ Name");

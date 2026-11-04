@@ -78,7 +78,7 @@ pub async fn draft(
             "count must be between 1 and {MAX_COUNT}"
         )));
     }
-    let set_name: String = sqlx::query_scalar("SELECT name FROM sets WHERE id = ?")
+    let set_name: String = sqlx::query_scalar("SELECT name FROM sets WHERE id = ? AND retired = 0")
         .bind(&set_id)
         .fetch_optional(&state.pool)
         .await?
@@ -172,6 +172,13 @@ pub async fn publish_drafts(
     State(state): State<AppState>,
     Path(set_id): Path<String>,
 ) -> ApiResult<Json<Published>> {
+    let active: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
+        .bind(&set_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if active == 0 {
+        return Err(ApiError::NotFound(format!("set `{set_id}`")));
+    }
     let published = sqlx::query(
         "UPDATE notes SET status = 'published'
          WHERE status = 'draft' AND id IN (SELECT note_id FROM set_notes WHERE set_id = ?)",
@@ -261,6 +268,9 @@ fn describe(f: &FieldDef) -> Option<String> {
     if let Some(unit) = &f.unit {
         parts.push(format!("in {unit}"));
     }
+    if let Some(max) = f.max_length {
+        parts.push(format!("at most {max} characters"));
+    }
     (!parts.is_empty()).then(|| parts.join(". "))
 }
 
@@ -286,9 +296,9 @@ fn system_prompt(note_type: &NoteType, set_name: &str, existing: &[String]) -> S
         )
     };
     format!(
-        "You draft flashcard notes for a spaced repetition app. The learner is a software \
-         engineer who is new to proteomics and mass spectrometry. Every note will be reviewed \
-         by the learner before it is studied.\n\n\
+        "You draft flashcard notes for people learning proteomics and mass spectrometry, \
+         regardless of their background. Every note will be reviewed by a content author \
+         before it is published.\n\n\
          The notes go into the set \"{set_name}\" and use the note type `{note_type}`, with these \
          fields:\n{fields}\n\n\
          {existing}\n\n\
@@ -329,7 +339,7 @@ mod tests {
     use srs_core::content::SetFile;
 
     fn vocabulary() -> NoteType {
-        let src = include_str!("../../../../seed/ms-vocabulary/ms-vocabulary.yaml");
+        let src = include_str!("../../../../seed/mass-spec-concepts/mass-spec-concepts.yaml");
         SetFile::from_yaml(src).unwrap().note_type
     }
 
@@ -340,7 +350,15 @@ mod tests {
         assert_eq!(item["additionalProperties"], false);
         assert_eq!(
             item["required"],
-            json!(["term", "definition", "technical", "example"])
+            json!([
+                "term",
+                "short_form",
+                "definition",
+                "function",
+                "key_fact",
+                "technical",
+                "example"
+            ])
         );
         assert_eq!(item["properties"]["term"]["type"], "string");
         assert_eq!(item["properties"]["technical"]["type"], json!(["string", "null"]));

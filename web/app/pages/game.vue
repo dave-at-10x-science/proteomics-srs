@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Board, GameBest, GameOption, Pairing } from '~/types/api';
+import DiagramPreview from '~/components/DiagramPreview.vue';
 
 type TileState = 'hidden' | 'shown' | 'matched';
 
 const api = useApi();
+const diagram = useOverlay().create(DiagramPreview);
 const options = ref<GameOption[] | null>(null);
 const setId = ref('');
 const pairingIdx = ref(0);
@@ -33,14 +35,14 @@ const matched = computed(() => Object.values(states.value).filter((s) => s === '
 const total = computed(() => (board.value?.tiles.length ?? 0) / 2);
 const done = computed(() => !!board.value && matched.value === total.value);
 const columns = computed(() => {
-  // Structures need bigger tiles than short text.
+  // Images and structures need bigger tiles than short text.
   const t = board.value;
   if (!t) return 4;
-  const hasStructure = [pairing.value?.a, pairing.value?.b].some((f) => {
+  const hasVisual = [pairing.value?.a, pairing.value?.b].some((f) => {
     const d = t.note_type.fields.find((x) => x.name === f);
-    return d?.type === 'smiles' || (d?.type === 'image' && !!d.from);
+    return d?.type === 'smiles' || d?.type === 'image';
   });
-  return hasStructure ? 3 : 4;
+  return hasVisual ? 3 : 4;
 });
 
 async function start() {
@@ -86,6 +88,16 @@ function flip(id: string) {
       open.value = [];
     }, 900);
   }
+}
+
+function preview(id: string) {
+  const b = board.value;
+  const tile = b?.tiles.find((t) => t.id === id);
+  if (!b || !tile || states.value[id] === 'hidden') return;
+  const def = b.note_type.fields.find((f) => f.name === tile.field);
+  const fields = b.notes[tile.note_id];
+  if (!def?.detailed || !fields) return;
+  void diagram.open({ def, fields, noteType: b.note_type });
 }
 
 async function finish() {
@@ -168,6 +180,7 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
           :note-type="board.note_type"
           :state="states[t.id]!"
           @flip="flip(t.id)"
+          @preview="preview(t.id)"
         />
       </div>
       <UCard v-if="done" :ui="{ body: 'flex flex-col items-center gap-4 py-6 text-center' }">

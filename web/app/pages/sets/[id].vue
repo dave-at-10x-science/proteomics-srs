@@ -37,7 +37,7 @@ async function publishAll() {
   const n = drafts.value.length;
   const ok = await confirm.open({
     title: `Publish ${n} ${n === 1 ? 'draft' : 'drafts'}?`,
-    description: 'Their cards join your daily reviews.',
+    description: 'New notes become available in Study. Study them to add their cards to reviews.',
     confirmLabel: 'Publish',
   }).result;
   if (!ok) return;

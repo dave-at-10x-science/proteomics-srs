@@ -2,8 +2,8 @@
 //!
 //! Import runs on every start and is idempotent:
 //! - note types and sets are updated from the file (the file owns the schema), so new templates
-//!   appear as new cards;
-//! - notes are only inserted if missing, so edits made in the app are never overwritten;
+//!   appear as new cards and removed templates' cards are deleted;
+//! - existing notes keep app edits; explicit visual-set refreshes replace unchanged seed fields;
 //! - new users are subscribed to default sets.
 
 use std::path::Path;
@@ -40,6 +40,7 @@ pub async fn import_dir(pool: &SqlitePool, dir: &Path) -> anyhow::Result<usize> 
         let set = SetFile::from_yaml(&src).map_err(|e| anyhow::anyhow!("{}: {e}", f.display()))?;
         import_set(pool, &set).await?;
     }
+    crate::seed_refresh::finish_import(pool).await?;
     Ok(files.len())
 }
 
@@ -77,9 +78,15 @@ pub async fn import_set(pool: &SqlitePool, file: &SetFile) -> anyhow::Result<()>
             .await?
             > 0;
         if exists {
+            let existing = store::note(&mut *tx, &note.id).await?;
+            if !crate::seed_refresh::refresh_note(&mut tx, &existing, &file.note_type, note).await? {
+                tracing::warn!(note = %note.id, "seed id belongs to another note type; keeping authored content");
+                continue;
+            }
             store::ensure_cards(&mut tx, &file.note_type, &note.id).await?;
         } else {
             store::upsert_note(&mut tx, &file.note_type, note, "published", now).await?;
+            crate::seed_refresh::remember_new_note(&mut tx, &note.id).await?;
         }
         store::add_to_set(&mut tx, &file.set.id, &note.id).await?;
     }

@@ -44,7 +44,14 @@ const long = computed(() => shown.value.filter((f) => !isVisual(f) && !isShort(f
 <template>
   <div class="flex flex-col gap-4">
     <template v-if="visualsFirst">
-      <FieldView v-for="f in visuals" :key="f.name" :def="f" :fields="fields" :note-type="noteType" />
+      <FieldView
+        v-for="f in visuals"
+        :key="f.name"
+        :def="f"
+        :fields="fields"
+        :note-type="noteType"
+        :label="visuals.length > 1"
+      />
     </template>
     <!-- Columns share the width by content, so a long name gets more room than a one-letter code. -->
     <div

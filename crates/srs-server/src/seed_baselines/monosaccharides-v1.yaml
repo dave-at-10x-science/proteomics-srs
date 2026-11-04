@@ -1,0 +1,114 @@
+# Recognise nine monosaccharides by their standard SNFG picture, name and abbreviation.
+# Symbols, names and RGB colors: https://www.ncbi.nlm.nih.gov/glycans/snfg.html (Tables 1, 2, 4).
+# Context: Essentials of Glycobiology, https://www.ncbi.nlm.nih.gov/books/NBK579927/,
+# https://www.ncbi.nlm.nih.gov/books/NBK1917/ and https://www.ncbi.nlm.nih.gov/books/NBK579976/.
+
+set:
+  id: monosaccharides
+  name: Monosaccharides for glycan analysis
+  default: false
+  tags: [glycans, glycomics, mass-spectrometry]
+
+note_type:
+  id: Monosaccharide
+  fields:
+    - {name: name, type: text}
+    - {name: abbreviation, label: Abbreviation, type: text}
+    - {name: shorthand, label: Composition class, type: text}
+    - {name: symbol, label: SNFG symbol, type: image}
+    - {name: abbreviation_alias, label: Also written, type: text, optional: true}
+    - {name: note, label: Context, type: markdown, optional: true}
+    # Keep old reference fields and template IDs so existing cards retain their history.
+    - {name: residue_mass, label: Residue mass (monoisotopic), type: number, unit: Da, optional: true}
+    - {name: formula, label: Residue formula, type: text, optional: true}
+  templates:
+    - id: name-to-abbreviation
+      prompt: [name]
+      answer: [abbreviation]
+      mode: typed
+      accept: [abbreviation, abbreviation_alias]
+    - id: name-to-symbol
+      prompt: [name]
+      answer: [symbol]
+      mode: multiple_choice
+    - id: symbol-to-name
+      prompt: [symbol]
+      answer: [name]
+      mode: multiple_choice
+    - id: name-to-shorthand
+      prompt: [name]
+      answer: [shorthand]
+      mode: multiple_choice
+      enabled_by_default: false
+    - id: name-to-residue-mass
+      prompt: [name]
+      answer: [residue_mass]
+      mode: typed
+      tolerance: 0.01
+      enabled_by_default: false
+
+notes:
+  - id: mono-glc
+    name: Glucose
+    abbreviation: Glc
+    shorthand: Hex
+    symbol: /study/monosaccharides/glc.svg
+    note: "Shares the Hex composition class with mannose and galactose; the symbol distinguishes them."
+
+  - id: mono-man
+    name: Mannose
+    abbreviation: Man
+    shorthand: Hex
+    symbol: /study/monosaccharides/man.svg
+    note: "Three mannose residues form the shared core of animal N-glycans."
+
+  - id: mono-gal
+    name: Galactose
+    abbreviation: Gal
+    shorthand: Hex
+    symbol: /study/monosaccharides/gal.svg
+    note: "Often extends the branches of complex N-glycans."
+
+  - id: mono-glcnac
+    name: N-Acetylglucosamine
+    abbreviation: GlcNAc
+    shorthand: HexNAc
+    symbol: /study/monosaccharides/glcnac.svg
+    note: "The first sugar attached to asparagine in animal N-glycans."
+
+  - id: mono-galnac
+    name: N-Acetylgalactosamine
+    abbreviation: GalNAc
+    shorthand: HexNAc
+    symbol: /study/monosaccharides/galnac.svg
+    note: "Starts mucin-type O-glycans on serine or threonine."
+
+  - id: mono-fuc
+    name: Fucose
+    abbreviation: Fuc
+    shorthand: dHex
+    symbol: /study/monosaccharides/fuc.svg
+    note: "A deoxyhexose, commonly found on the core of N-glycans."
+
+  - id: mono-neuac
+    name: N-Acetylneuraminic acid
+    abbreviation: Neu5Ac
+    abbreviation_alias: NeuAc
+    shorthand: Sialic acid
+    symbol: /study/monosaccharides/neu5ac.svg
+    note: "The most common sialic acid in humans."
+
+  - id: mono-neugc
+    name: N-Glycolylneuraminic acid
+    abbreviation: Neu5Gc
+    abbreviation_alias: NeuGc
+    shorthand: Sialic acid
+    symbol: /study/monosaccharides/neu5gc.svg
+    note: "A sialic acid made by many mammals, but not synthesized by humans."
+
+  - id: mono-xyl
+    name: Xylose
+    abbreviation: Xyl
+    shorthand: Pent
+    symbol: /study/monosaccharides/xyl.svg
+    note: "Links many glycosaminoglycan chains to their core protein."

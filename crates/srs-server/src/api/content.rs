@@ -59,6 +59,8 @@ pub struct SetSummary {
     pub subscribed: bool,
     pub note_count: i64,
     pub card_count: i64,
+    /// Concepts with this learner's previous study or review progress.
+    pub studied_count: i64,
 }
 
 pub async fn list_sets(State(state): State<AppState>) -> ApiResult<Json<Vec<SetSummary>>> {
@@ -67,8 +69,13 @@ pub async fn list_sets(State(state): State<AppState>) -> ApiResult<Json<Vec<SetS
                 EXISTS (SELECT 1 FROM subscriptions WHERE user_id = ?1 AND set_id = s.id) AS subscribed,
                 (SELECT COUNT(*) FROM set_notes sn WHERE sn.set_id = s.id) AS note_count,
                 (SELECT COUNT(*) FROM set_notes sn JOIN cards c ON c.note_id = sn.note_id
-                 WHERE sn.set_id = s.id AND c.enabled = 1) AS card_count
-         FROM sets s ORDER BY s.is_default DESC, s.name",
+                 WHERE sn.set_id = s.id AND c.enabled = 1 AND c.content_available = 1) AS card_count,
+                (SELECT COUNT(*) FROM set_notes sn WHERE sn.set_id = s.id AND (
+                    EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = sn.note_id)
+                    OR EXISTS (SELECT 1 FROM card_state cs WHERE cs.user_id = ?1 AND cs.note_id = sn.note_id)
+                    OR EXISTS (SELECT 1 FROM review_log rl WHERE rl.user_id = ?1 AND rl.note_id = sn.note_id)
+                )) AS studied_count
+         FROM sets s WHERE s.retired = 0 ORDER BY s.is_default DESC, s.name",
     )
     .bind(LOCAL_USER)
     .fetch_all(&state.pool)
@@ -84,6 +91,7 @@ pub async fn list_sets(State(state): State<AppState>) -> ApiResult<Json<Vec<SetS
                 subscribed: r.get("subscribed"),
                 note_count: r.get("note_count"),
                 card_count: r.get("card_count"),
+                studied_count: r.get("studied_count"),
             })
         })
         .collect::<ApiResult<_>>()?;
@@ -138,6 +146,7 @@ pub async fn create_set(
         subscribed: true,
         note_count: 0,
         card_count: 0,
+        studied_count: 0,
     };
     Ok((StatusCode::CREATED, Json(summary)))
 }
@@ -145,6 +154,16 @@ pub async fn create_set(
 #[derive(Debug, Deserialize)]
 pub struct Subscription {
     pub subscribed: bool,
+    #[serde(default)]
+    pub progress: PreviousProgress,
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreviousProgress {
+    #[default]
+    Resume,
+    Restart,
 }
 
 pub async fn set_subscription(
@@ -152,23 +171,41 @@ pub async fn set_subscription(
     Path(set_id): Path<String>,
     Json(req): Json<Subscription>,
 ) -> ApiResult<StatusCode> {
-    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ?")
+    let mut tx = state.pool.begin().await?;
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
         .bind(&set_id)
-        .fetch_one(&state.pool)
+        .fetch_one(&mut *tx)
         .await?;
     if exists == 0 {
         return Err(ApiError::NotFound(format!("set `{set_id}`")));
     }
-    let sql = if req.subscribed {
-        "INSERT INTO subscriptions (user_id, set_id) VALUES (?, ?) ON CONFLICT DO NOTHING"
+    if req.progress == PreviousProgress::Restart && !req.subscribed {
+        return Err(ApiError::invalid(
+            "restart is only available when turning a set on",
+        ));
+    }
+    if req.subscribed {
+        let inserted =
+            sqlx::query("INSERT INTO subscriptions (user_id, set_id) VALUES (?, ?) ON CONFLICT DO NOTHING")
+                .bind(LOCAL_USER)
+                .bind(&set_id)
+                .execute(&mut *tx)
+                .await?
+                .rows_affected();
+        if req.progress == PreviousProgress::Restart {
+            if inserted == 0 {
+                return Err(ApiError::invalid("turn the set off before starting it over"));
+            }
+            store::restart_set_progress(&mut tx, LOCAL_USER, &set_id).await?;
+        }
     } else {
-        "DELETE FROM subscriptions WHERE user_id = ? AND set_id = ?"
-    };
-    sqlx::query(sql)
-        .bind(LOCAL_USER)
-        .bind(&set_id)
-        .execute(&state.pool)
-        .await?;
+        sqlx::query("DELETE FROM subscriptions WHERE user_id = ? AND set_id = ?")
+            .bind(LOCAL_USER)
+            .bind(&set_id)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -226,7 +263,7 @@ pub async fn create_note(
     Json(req): Json<NewNote>,
 ) -> ApiResult<(StatusCode, Json<StoredNote>)> {
     let note_type = store::note_type(&state.pool, &req.note_type_id).await?;
-    let set_exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ?")
+    let set_exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sets WHERE id = ? AND retired = 0")
         .bind(&req.set_id)
         .fetch_one(&state.pool)
         .await?;

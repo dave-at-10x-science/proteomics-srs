@@ -1,0 +1,155 @@
+# Recognise protein-linked cores and terminal motifs using the learned SNFG symbols.
+# Structures: Essentials of Glycobiology, 4th edition:
+# https://www.ncbi.nlm.nih.gov/books/NBK579921/table/CSHLP5087CH10TB1/
+# https://www.ncbi.nlm.nih.gov/books/NBK579964/?report=classic
+# https://www.ncbi.nlm.nih.gov/books/NBK579929/figure/CSHLP5087CH14F2/?report=objectonly
+# https://www.ncbi.nlm.nih.gov/books/NBK579950/
+# Man5 connectivity: https://ora.ox.ac.uk/objects/uuid%3Ae33405d9-aad7-4431-ae68-594edf2da5df
+# Sialylated LacNAc linkage isomers: https://eprints.lib.hokudai.ac.jp/repo/huscap/all/5844/RCMS20-3.pdf
+# Symbols, colors and linkage notation: https://www.ncbi.nlm.nih.gov/glycans/snfg.html
+# N-glycan classes use the explicit examples named below, not one universal class structure.
+# All sialylated examples use Neu5Ac. R in terminal motifs marks the rest of a glycan.
+
+set:
+  id: glycan-motifs
+  name: Glycan motifs
+  default: false
+  tags: [glycans, glycoproteomics, visual-recognition]
+
+note_type:
+  id: GlycanMotif
+  fields:
+    - {name: term, label: Name, type: text}
+    - {name: image, label: SNFG motif, type: image, optional: true, detailed: true}
+    - {name: family, label: Family, type: text, optional: true}
+    - {name: feature, label: Recognise it, type: markdown}
+    - {name: context, label: Context, type: markdown}
+    # Keep fields and template IDs from the former reference notes for existing history.
+    - {name: kind, label: Topic, type: text, optional: true}
+    - {name: definition, label: Previous definition, type: markdown, optional: true}
+    - {name: detail, label: Previous detail, type: markdown, optional: true}
+  templates:
+    - id: image-to-term
+      prompt: [image]
+      answer: [term]
+      mode: multiple_choice
+    - id: term-to-image
+      prompt: [term]
+      answer: [image]
+      mode: multiple_choice
+    - id: term-to-definition
+      prompt: [term]
+      answer: [definition]
+      mode: flip
+      enabled_by_default: false
+    - id: definition-to-term
+      prompt: [definition]
+      answer: [term]
+      mode: multiple_choice
+      enabled_by_default: false
+
+notes:
+  - id: gly-tn
+    term: Tn antigen
+    family: O-GalNAc
+    image: /study/glycans/tn.svg
+    feature: "A single GalNAc α-linked to Ser/Thr."
+    context: "Extending this GalNAc produces other mucin-type O-glycan motifs."
+
+  - id: gly-sialyl-tn
+    term: Sialyl-Tn antigen
+    family: O-GalNAc
+    image: /study/glycans/sialyl-tn.svg
+    feature: "Neu5Ac α2-6 linked to GalNAc."
+    context: "Here the sialic acid is Neu5Ac, the common human form."
+
+  - id: gly-core1
+    term: O-glycan core 1 (T antigen)
+    family: O-GalNAc
+    image: /study/glycans/core1.svg
+    feature: "Gal β1-3 linked to GalNAc."
+    context: "Also called T antigen; a common core for longer mucin-type O-glycans."
+
+  - id: gly-core2
+    term: O-glycan core 2
+    family: O-GalNAc
+    image: /study/glycans/core2.svg
+    feature: "Core 1 with an added GlcNAc β1-6 branch."
+    context: "The GalNAc carries two arms: one Gal and one GlcNAc."
+
+  - id: gly-core3
+    term: O-glycan core 3
+    family: O-GalNAc
+    image: /study/glycans/core3.svg
+    feature: "GlcNAc β1-3 linked to GalNAc."
+    context: "Often found in mucins of the gastrointestinal tract."
+
+  - id: gly-core4
+    term: O-glycan core 4
+    family: O-GalNAc
+    image: /study/glycans/core4.svg
+    feature: "Core 3 with an added GlcNAc β1-6 branch."
+    context: "Both arms begin with GlcNAc; core 2 has Gal on its β1-3 arm."
+
+  - id: gly-n-core
+    term: N-glycan core (Man3GlcNAc2)
+    family: N-glycan
+    image: /study/glycans/n-core.svg
+    feature: "The unextended N-linked core: two GlcNAc and three Man residues."
+    context: "GlcNAc attaches to Asn; the three Man residues form the central branch."
+
+  - id: gly-high-mannose
+    term: High-mannose N-glycan (Man5 example)
+    family: N-glycan
+    image: /study/glycans/high-mannose.svg
+    feature: "Only mannose extends the N-glycan core."
+    context: "Shown: the Man5 form; the class also includes larger mannose-rich glycans."
+
+  - id: gly-complex
+    term: Complex N-glycan (biantennary example)
+    family: N-glycan
+    image: /study/glycans/complex.svg
+    feature: "Both core arms have an added GlcNAc."
+    context: "Shown without terminal Gal; these GlcNAc-started arms can be extended."
+
+  - id: gly-hybrid
+    term: Hybrid N-glycan (example)
+    family: N-glycan
+    image: /study/glycans/hybrid.svg
+    feature: "One arm is mannose-rich; the other has an added GlcNAc."
+    context: "Shown: a simple hybrid with GlcNAc on the core's α1-3 arm."
+
+  - id: gly-core-fucose
+    term: Core α1-6 fucosylation
+    family: N-glycan
+    image: /study/glycans/core-fucose.svg
+    feature: "Fuc α1-6 linked to the Asn-linked GlcNAc."
+    context: "Shown on the minimal N-glycan core; fucose on an antenna is in a different position."
+
+  - id: gly-o-glcnac
+    term: O-GlcNAc
+    family: Protein O-linkage
+    image: /study/glycans/o-glcnac.svg
+    feature: "A single GlcNAc β-linked to Ser/Thr."
+    context: "Common on nuclear and cytoplasmic proteins; distinct from the GalNAc of Tn."
+
+  - id: gly-lacnac
+    term: LacNAc (type 2)
+    family: Terminal motif
+    image: /study/glycans/lacnac.svg
+    feature: "Gal β1-4 linked to GlcNAc."
+    context: "A common unit in glycan antennae; R marks the rest of the chain."
+
+  - id: gly-lacnac-sialyl-23
+    term: α2-3-sialylated LacNAc
+    family: Terminal motif
+    image: /study/glycans/lacnac-sialyl-23.svg
+    feature: "Neu5Ac α2-3 linked to the Gal of LacNAc."
+    context: "This cap differs from α2-6 by its linkage, not its monosaccharide composition."
+
+  - id: gly-lacnac-sialyl-26
+    term: α2-6-sialylated LacNAc
+    family: Terminal motif
+    image: /study/glycans/lacnac-sialyl-26.svg
+    feature: "Neu5Ac α2-6 linked to the Gal of LacNAc."
+    context: "The same three sugars as the α2-3 cap, connected at a different Gal carbon."

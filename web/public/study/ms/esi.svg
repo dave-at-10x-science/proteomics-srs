@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <text x="75" y="55">Liquid</text>
+    <path d="M24 102H119L153 144L119 186H24" fill="#faf5ff" stroke="#111827" stroke-width="3"/>
+    <path d="M24 144H147" stroke="#9333ea" stroke-width="9"/>
+    <path d="M97 194V235H145" fill="none" stroke="#111827" stroke-width="3"/>
+    <text x="168" y="242" font-size="27">+</text><text x="71" y="271">Voltage</text>
+    <g fill="#faf5ff" stroke="#9333ea" stroke-width="3"><circle cx="186" cy="145" r="21"/><circle cx="229" cy="110" r="14"/><circle cx="235" cy="179" r="13"/><circle cx="269" cy="140" r="8"/></g>
+    <g fill="#9333ea" font-size="22"><text x="186" y="152">+</text><text x="229" y="117">+</text><text x="235" y="186">+</text><text x="307" y="104">+ +</text><text x="309" y="174">+ + +</text></g>
+    <path d="M168 77L294 77" stroke="#111827" stroke-width="3" marker-end="url(#arrow)"/>
+    <text x="285" y="232">Gas ions</text>
+
+  </g>
+</svg>

@@ -50,7 +50,7 @@ pub struct ReviewCard {
     pub note_type: NoteType,
     pub template: CardTemplate,
     pub fields: BTreeMap<String, serde_json::Value>,
-    /// Options for multiple-choice cards, already shuffled.
+    /// Shuffled answer values. Derived images use their source field (e.g. SMILES).
     pub choices: Option<Vec<String>>,
     pub intervals: Intervals,
 }
@@ -200,7 +200,9 @@ async fn review_card(
         .ok_or_else(|| ApiError::NotFound(format!("template `{}`", id.template_id)))?;
 
     let choices = match template.mode {
-        AnswerMode::MultipleChoice => Some(choices(state, set_id, &stored.note, &template).await?),
+        AnswerMode::MultipleChoice => {
+            Some(choices(state, set_id, &stored.note, &note_type, &template).await?)
+        }
         _ => None,
     };
 
@@ -226,24 +228,40 @@ async fn review_card(
     })
 }
 
-/// The correct answer plus distractors: the same field's values from other notes in the set.
+fn source_field<'a>(note_type: &'a NoteType, field: &'a str) -> &'a str {
+    note_type
+        .field(field)
+        .and_then(|f| f.from.as_deref())
+        .unwrap_or(field)
+}
+
+/// Values render through the answer field definition, including its depiction template.
 async fn choices(
     state: &AppState,
     set_id: &str,
     note: &Note,
+    note_type: &NoteType,
     template: &CardTemplate,
 ) -> ApiResult<Vec<String>> {
-    let field = &template.answer[0];
-    let correct = note.text(field).unwrap_or_default();
+    let field = source_field(note_type, &template.answer[0]);
+    let correct = note
+        .text(field)
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| ApiError::invalid(format!("note `{}` is missing answer field `{field}`", note.id)))?;
     // A note with the same prompt would make its answer right too (deamidation and
     // citrullination share a mass shift), so it can't be a distractor.
-    let same_prompt = |other: &Note| template.prompt.iter().all(|f| other.get(f) == note.get(f));
+    let same_prompt = |other: &Note| {
+        template.prompt.iter().all(|f| {
+            let source = source_field(note_type, f);
+            other.get(source) == note.get(source)
+        })
+    };
     let mut others: Vec<String> = store::set_notes(&state.pool, set_id)
         .await?
         .into_iter()
-        .filter(|n| n.status == "published" && !same_prompt(&n.note))
+        .filter(|n| n.status == "published" && n.note_type_id == note_type.id && !same_prompt(&n.note))
         .filter_map(|n| n.note.text(field))
-        .filter(|v| *v != correct)
+        .filter(|v| !v.trim().is_empty() && *v != correct)
         .collect();
     others.sort();
     others.dedup();
@@ -265,7 +283,7 @@ pub struct CheckRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckResponse {
     pub correct: bool,
-    /// The answer fields' values, to show after answering.
+    /// Answer values, including the source values for derived fields.
     pub expected: BTreeMap<String, serde_json::Value>,
 }
 
@@ -278,13 +296,24 @@ pub async fn check(
     let template = note_type
         .template(&req.template_id)
         .ok_or_else(|| ApiError::NotFound(format!("template `{}`", req.template_id)))?;
-    let expected = template
+    let mut resolved = template.clone();
+    resolved.answer = template
+        .answer
+        .iter()
+        .map(|f| source_field(&note_type, f).to_string())
+        .collect();
+    resolved.accept = template
+        .accept
+        .iter()
+        .map(|f| source_field(&note_type, f).to_string())
+        .collect();
+    let expected = resolved
         .answer
         .iter()
         .filter_map(|f| Some((f.clone(), stored.note.get(f)?.clone())))
         .collect();
     Ok(Json(CheckResponse {
-        correct: answer::check(template, &stored.note, &req.input),
+        correct: answer::check(&resolved, &stored.note, &req.input),
         expected,
     }))
 }

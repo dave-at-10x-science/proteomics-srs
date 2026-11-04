@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <path d="M44 48V235H325" fill="none" stroke="#111827" stroke-width="3"/>
+    <path d="M46 233H87Q106 233 116 191Q126 233 147 233H177Q197 233 211 91Q225 233 244 233H273Q289 233 299 206Q309 233 324 233" fill="none" stroke="#111827" stroke-width="4"/>
+    <path d="M211 89V235" stroke="#9333ea" stroke-width="3" stroke-dasharray="7 5"/>
+    <circle cx="211" cy="91" r="7" fill="#9333ea"/>
+    <path d="M47 58H208" stroke="#9333ea" stroke-width="4" marker-start="url(#accent-arrow)" marker-end="url(#accent-arrow)"/>
+    <text x="130" y="39" fill="#9333ea" font-size="26">?</text>
+    <text x="45" y="259">0</text><text x="130" y="259">2</text><text x="212" y="259">4</text><text x="295" y="259">6</text>
+    <text x="190" y="286">Time (min)</text><text transform="translate(20 153) rotate(-90)">Signal</text>
+    <text x="85" y="208" font-size="16">Injection</text><path d="M76 214L47 231" stroke="#111827" stroke-width="2"/>
+
+  </g>
+</svg>

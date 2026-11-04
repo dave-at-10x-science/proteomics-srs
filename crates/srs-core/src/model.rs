@@ -31,12 +31,23 @@ pub struct FieldDef {
     pub unit: Option<String>,
     #[serde(default)]
     pub optional: bool,
+    /// Longest allowed value in characters, e.g. 3 for a three-letter code. The answer box stops
+    /// there too, so the expected form is obvious.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_length: Option<usize>,
     /// For derived images: the field this one is rendered from (e.g. `smiles`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     /// For structures: the depiction template that fixes the drawing's orientation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depiction_template: Option<String>,
+    /// Fine-detail pictures need larger answer choices and an enlarged memory-game view.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub detailed: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }
 
 /// A fixed 2D layout for a shared core, so every structure of a note type is drawn the same way.
@@ -79,6 +90,21 @@ fn default_true() -> bool {
 }
 
 impl CardTemplate {
+    /// Optional facts can support a note without creating empty questions.
+    pub fn has_content(&self, note_type: &NoteType, note: &Note) -> bool {
+        self.prompt.iter().chain(&self.answer).all(|name| {
+            let source = note_type
+                .field(name)
+                .and_then(|field| field.from.as_ref())
+                .unwrap_or(name);
+            match note.get(source) {
+                Some(serde_json::Value::String(value)) => !value.trim().is_empty(),
+                Some(serde_json::Value::Number(_)) => true,
+                _ => false,
+            }
+        })
+    }
+
     /// The fields whose values are accepted as a typed answer.
     pub fn accepted_fields(&self) -> &[String] {
         if self.accept.is_empty() {

@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import type { Counts, SetSummary } from '~/types/api';
+import type { Counts, SetSummary, SubscriptionProgress } from '~/types/api';
+import ResumeSetModal from '~/components/ResumeSetModal.vue';
 
 const api = useApi();
+const resumeSet = useOverlay().create(ResumeSetModal);
 const counts = ref<Counts | null>(null);
 const unstudied = ref(0);
 const sets = ref<SetSummary[]>([]);
 const error = ref('');
+const toggling = ref<string | null>(null);
 
 async function load() {
   try {
@@ -20,8 +23,30 @@ async function load() {
 }
 
 async function toggle(set: SetSummary) {
-  await api.subscribe(set.id, !set.subscribed);
-  await load();
+  if (toggling.value) return;
+  toggling.value = set.id;
+  error.value = '';
+  try {
+    const subscribed = !set.subscribed;
+    let progress: SubscriptionProgress | undefined;
+    if (subscribed && set.studied_count > 0) {
+      progress = await resumeSet.open({ setName: set.name, studiedCount: set.studied_count }).result;
+      if (!progress) return;
+    }
+    await api.subscribe(set.id, subscribed, progress);
+    if (progress === 'restart') {
+      try {
+        sessionStorage.removeItem('srs.round');
+      } catch {
+        // A saved round may not be available in this browser.
+      }
+    }
+    await load();
+  } catch (e) {
+    error.value = apiErrors(e).join(' ');
+  } finally {
+    toggling.value = null;
+  }
 }
 
 const total = computed(() => {
@@ -51,7 +76,7 @@ onMounted(load);
           <div class="mt-1 text-sm text-white/80">due for review</div>
         </div>
         <div>
-          <div class="text-2xl leading-none font-semibold tabular-nums">{{ unstudied }}</div>
+          <div class="text-5xl leading-none font-bold tracking-tight tabular-nums">{{ unstudied }}</div>
           <div class="mt-1 text-sm text-white/80">not studied yet</div>
         </div>
       </div>
@@ -92,6 +117,7 @@ onMounted(load);
         <li v-for="s in sets" :key="s.id">
           <USwitch
             :model-value="s.subscribed"
+            :disabled="toggling !== null"
             :label="s.name"
             :description="`${s.note_count} notes · ${s.card_count} cards`"
             class="w-full px-4 py-3 sm:px-6"

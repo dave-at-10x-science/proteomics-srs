@@ -12,8 +12,11 @@ export interface FieldDef {
   type: FieldType;
   unit?: string;
   optional?: boolean;
+  max_length?: number;
   from?: string;
   depiction_template?: string;
+  /** Detailed diagrams need larger answer choices and an enlarged memory-game view. */
+  detailed?: boolean;
 }
 
 export interface DepictionTemplate {
@@ -52,6 +55,7 @@ export interface ReviewCard {
   note_type: NoteType;
   template: CardTemplate;
   fields: Record<string, FieldValue>;
+  /** Answer values; image choices hold local URLs or the derived image's source SMILES. */
   choices: string[] | null;
   /** Seconds until due again, per rating. */
   intervals: Record<Rating, number>;
@@ -95,12 +99,17 @@ export interface SetSummary {
   subscribed: boolean;
   note_count: number;
   card_count: number;
+  /** Concepts with previous study or review progress for the current learner. */
+  studied_count: number;
 }
+
+export type SubscriptionProgress = 'resume' | 'restart';
 
 export interface Settings {
   new_per_day: number;
   reviews_per_day: number | null;
   desired_retention: number;
+  study_order: 'set_order' | 'random';
 }
 
 export type StoredNote = { id: string; note_type_id: string; status: 'draft' | 'published' } & Record<

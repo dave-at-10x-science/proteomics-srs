@@ -30,31 +30,57 @@ fn parse_phase(s: &str) -> Phase {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StudyOrder {
+    #[default]
+    SetOrder,
+    Random,
+}
+
+impl StudyOrder {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::SetOrder => "set_order",
+            Self::Random => "random",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub new_per_day: u32,
     pub reviews_per_day: Option<u32>,
     pub desired_retention: f32,
+    #[serde(default)]
+    pub study_order: StudyOrder,
 }
 
 pub async fn settings(pool: &SqlitePool, user: i64) -> ApiResult<Settings> {
-    let row = sqlx::query("SELECT new_per_day, reviews_per_day, desired_retention FROM users WHERE id = ?")
-        .bind(user)
-        .fetch_optional(pool)
-        .await?
-        .ok_or_else(|| ApiError::NotFound(format!("user {user}")))?;
+    let row = sqlx::query(
+        "SELECT new_per_day, reviews_per_day, desired_retention, study_order FROM users WHERE id = ?",
+    )
+    .bind(user)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| ApiError::NotFound(format!("user {user}")))?;
     Ok(Settings {
         new_per_day: row.get::<i64, _>(0) as u32,
         reviews_per_day: row.get::<Option<i64>, _>(1).map(|v| v as u32),
         desired_retention: row.get::<f64, _>(2) as f32,
+        study_order: match row.get::<&str, _>(3) {
+            "random" => StudyOrder::Random,
+            _ => StudyOrder::SetOrder,
+        },
     })
 }
 
 pub async fn save_settings(pool: &SqlitePool, user: i64, s: &Settings) -> ApiResult<()> {
-    sqlx::query("UPDATE users SET new_per_day = ?, reviews_per_day = ?, desired_retention = ? WHERE id = ?")
+    sqlx::query("UPDATE users SET new_per_day = ?, reviews_per_day = ?, desired_retention = ?, study_order = ? WHERE id = ?")
         .bind(s.new_per_day as i64)
         .bind(s.reviews_per_day.map(|v| v as i64))
         .bind(s.desired_retention as f64)
+        .bind(s.study_order.as_str())
         .bind(user)
         .execute(pool)
         .await?;
@@ -125,7 +151,10 @@ pub async fn unstudied_notes(pool: &SqlitePool, user: i64) -> ApiResult<Vec<Stor
          FROM notes n
          JOIN set_notes sn ON sn.note_id = n.id
          JOIN subscriptions s ON s.set_id = sn.set_id AND s.user_id = ?1
+         JOIN sets library ON library.id = sn.set_id AND library.retired = 0
          WHERE n.status = 'published'
+           AND EXISTS (SELECT 1 FROM cards c WHERE c.note_id = n.id
+                       AND c.enabled = 1 AND c.content_available = 1)
            AND NOT EXISTS (SELECT 1 FROM studied_notes st WHERE st.user_id = ?1 AND st.note_id = n.id)
          GROUP BY n.id
          ORDER BY MIN(sn.set_id), MIN(sn.position)",
@@ -185,14 +214,31 @@ pub async fn reset_progress(pool: &SqlitePool, user: i64) -> ApiResult<u64> {
     Ok(reviews)
 }
 
-/// The first set (by id) containing the note.
+/// Restart this set's concepts for one learner. The caller enables the set in the same transaction.
+/// Note identity is shared across sets, so progress for a shared concept restarts everywhere.
+pub async fn restart_set_progress(db: &mut sqlx::SqliteConnection, user: i64, set_id: &str) -> ApiResult<()> {
+    for table in ["card_state", "review_log", "studied_notes"] {
+        sqlx::query(&format!(
+            "DELETE FROM {table} WHERE user_id = ?
+             AND note_id IN (SELECT note_id FROM set_notes WHERE set_id = ?)"
+        ))
+        .bind(user)
+        .bind(set_id)
+        .execute(&mut *db)
+        .await?;
+    }
+    Ok(())
+}
+
+/// The first active set (by id) containing the note.
 pub async fn set_of_note(pool: &SqlitePool, note_id: &str) -> ApiResult<Option<String>> {
-    Ok(
-        sqlx::query_scalar("SELECT MIN(set_id) FROM set_notes WHERE note_id = ?")
-            .bind(note_id)
-            .fetch_one(pool)
-            .await?,
+    Ok(sqlx::query_scalar(
+        "SELECT MIN(sn.set_id) FROM set_notes sn JOIN sets s ON s.id = sn.set_id
+             WHERE sn.note_id = ? AND s.retired = 0",
     )
+    .bind(note_id)
+    .fetch_one(pool)
+    .await?)
 }
 
 /// Insert or replace a note's fields, and make sure it has a card for every template.
@@ -223,17 +269,32 @@ pub async fn ensure_cards(
     note_type: &NoteType,
     note_id: &str,
 ) -> ApiResult<()> {
+    let stored = note(&mut *db, note_id).await?;
     for (i, t) in note_type.templates.iter().enumerate() {
         sqlx::query(
-            "INSERT INTO cards (note_id, template_id, position, enabled) VALUES (?, ?, ?, ?)
-             ON CONFLICT (note_id, template_id) DO UPDATE SET position = excluded.position",
+            "INSERT INTO cards (note_id, template_id, position, enabled, content_available) VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT (note_id, template_id) DO UPDATE SET position = excluded.position,
+                 content_available = excluded.content_available",
         )
         .bind(note_id)
         .bind(&t.id)
         .bind(i as i64)
         .bind(t.enabled_by_default)
+        .bind(t.has_content(note_type, &stored.note))
         .execute(&mut *db)
         .await?;
+    }
+    // A template dropped from the note type takes its cards, and their schedule, with it.
+    let existing: Vec<String> = sqlx::query_scalar("SELECT template_id FROM cards WHERE note_id = ?")
+        .bind(note_id)
+        .fetch_all(&mut *db)
+        .await?;
+    for template_id in existing.iter().filter(|id| note_type.template(id).is_none()) {
+        sqlx::query("DELETE FROM cards WHERE note_id = ? AND template_id = ?")
+            .bind(note_id)
+            .bind(template_id)
+            .execute(&mut *db)
+            .await?;
     }
     Ok(())
 }
@@ -262,9 +323,10 @@ pub async fn candidates(pool: &SqlitePool, user: i64, now: DateTime<Utc>) -> Api
          JOIN notes n ON n.id = c.note_id AND n.status = 'published'
          JOIN set_notes sn ON sn.note_id = c.note_id
          JOIN subscriptions s ON s.set_id = sn.set_id AND s.user_id = ?1
+         JOIN sets library ON library.id = sn.set_id AND library.retired = 0
          LEFT JOIN card_state cs
              ON cs.user_id = ?1 AND cs.note_id = c.note_id AND cs.template_id = c.template_id
-         WHERE c.enabled = 1
+         WHERE c.enabled = 1 AND c.content_available = 1
          GROUP BY c.note_id, c.template_id
          ORDER BY MIN(sn.set_id), MIN(sn.position), c.position",
     )
@@ -327,11 +389,13 @@ pub async fn card_state(
 }
 
 pub async fn card_exists(pool: &SqlitePool, id: &CardId) -> ApiResult<bool> {
-    let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM cards WHERE note_id = ? AND template_id = ?")
-        .bind(&id.note_id)
-        .bind(&id.template_id)
-        .fetch_one(pool)
-        .await?;
+    let n: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM cards WHERE note_id = ? AND template_id = ? AND enabled = 1 AND content_available = 1",
+    )
+    .bind(&id.note_id)
+    .bind(&id.template_id)
+    .fetch_one(pool)
+    .await?;
     Ok(n > 0)
 }
 

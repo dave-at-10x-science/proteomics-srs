@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <g fill="none" stroke="#111827" stroke-width="4"><path d="M45 65C40 25 130 22 132 60S45 110 48 72S132 115 134 75"/><path d="M202 42H250M258 65H310M211 91H272"/></g>
+    <g stroke="#9333ea" stroke-width="4" marker-end="url(#accent-arrow)"><path d="M145 68H189"/><path d="M334 112V162"/><path d="M203 229H163"/></g>
+    <text x="90" y="132">Protein</text><text x="257" y="132">Peptides</text>
+    <rect x="36" y="170" width="111" height="85" rx="5" fill="#faf5ff" stroke="#111827" stroke-width="2"/>
+    <g stroke-width="6"><path d="M48 186H135M48 204H135M48 222H135M48 240H135" stroke="#d1d5db"/><path d="M62 186H99M84 204H121M48 222H81" stroke="#9333ea"/></g>
+    <path d="M215 177V249H325M228 249V218M248 249V188M274 249V205M301 249V181" fill="none" stroke="#111827" stroke-width="3"/>
+    <text x="92" y="283">Protein inference</text><text x="269" y="283">Spectra</text>
+
+  </g>
+</svg>

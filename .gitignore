@@ -25,3 +25,4 @@ rustc-ice-*.txt
 
 # Local database
 /data/
+.DS_Store

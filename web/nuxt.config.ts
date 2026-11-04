@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   css: ['~/assets/main.css'],
   modules: ['@nuxt/ui', '@vite-pwa/nuxt'],
   ui: {
-    // System fonts: nothing to download, and they match the phone.
+    // Use the theme's installed font stack without downloading fonts.
     fonts: false,
     theme: {
       // Large controls by default, so everything is comfortable to tap.

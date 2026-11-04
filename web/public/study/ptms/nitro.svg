@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#17131f">
+<title>Before and after chemical structures</title>
+<desc>Connectivity schematic. R is the unchanged remainder of the peptide. Purple highlights the featured group; protonation is not shown at a fixed pH.</desc>
+<!-- Chemistry: https://www.unimod.org/modifications_view.php?editid1=354 -->
+<rect width="480" height="480" rx="16" fill="#fff" />
+<text x="24" y="30" font-size="21">Before</text>
+<text x="24" y="253" font-size="21">After</text>
+<path d="M240 214V238M231 231L240 240L249 231" fill="none" stroke="#17131f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+<text x="32" y="110" text-anchor="middle" dominant-baseline="central" fill="#17131f">R</text>
+<text x="100" y="110" text-anchor="middle" dominant-baseline="central" fill="#17131f">CH₂</text>
+<path d="M45.5 110.0L72.0 110.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M128.0 110.0L155.0 110.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M155.0 110.0L177.5 71.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M177.5 71.0L222.5 71.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M222.5 71.0L245.0 110.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M245.0 110.0L222.5 149.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M222.5 149.0L177.5 149.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M177.5 149.0L155.0 110.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M165.8 110.0L182.9 80.4" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M217.1 80.4L234.2 110.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M217.1 139.6L182.9 139.6" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<text x="325" y="110" text-anchor="middle" dominant-baseline="central" fill="#17131f">OH</text>
+<path d="M245.0 110.0L302.0 110.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<text x="32" y="355" text-anchor="middle" dominant-baseline="central" fill="#17131f">R</text>
+<text x="100" y="355" text-anchor="middle" dominant-baseline="central" fill="#17131f">CH₂</text>
+<path d="M45.5 355.0L72.0 355.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M128.0 355.0L155.0 355.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M155.0 355.0L177.5 316.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M177.5 316.0L222.5 316.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M222.5 316.0L245.0 355.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M245.0 355.0L222.5 394.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M222.5 394.0L177.5 394.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M177.5 394.0L155.0 355.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M165.8 355.0L182.9 325.4" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M217.1 325.4L234.2 355.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<path d="M217.1 384.6L182.9 384.6" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<text x="325" y="355" text-anchor="middle" dominant-baseline="central" fill="#17131f">OH</text>
+<path d="M245.0 355.0L302.0 355.0" fill="none" stroke="#17131f" stroke-width="2.8" stroke-linecap="round" />
+<text x="310" y="285" text-anchor="middle" dominant-baseline="central" fill="#713caf">N⁺</text>
+<text x="365" y="250" text-anchor="middle" dominant-baseline="central" fill="#713caf">O</text>
+<text x="405" y="310" text-anchor="middle" dominant-baseline="central" fill="#713caf">O⁻</text>
+<path d="M222.5 316.0L291.7 291.5" fill="none" stroke="#713caf" stroke-width="2.8" stroke-linecap="round" />
+<path d="M326.4 271.3L350.6 255.8" fill="none" stroke="#713caf" stroke-width="2.8" stroke-linecap="round" />
+<path d="M329.4 276.0L353.6 260.6" fill="none" stroke="#713caf" stroke-width="2.8" stroke-linecap="round" />
+<path d="M328.4 289.8L386.6 305.2" fill="none" stroke="#713caf" stroke-width="2.8" stroke-linecap="round" />
+<text x="240" y="460" text-anchor="middle" font-size="17">R = unchanged part of the peptide</text>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="300" viewBox="0 0 360 300" role="img" aria-label="Learning diagram">
+  <!-- Original schematic, not to scale. The tested name is deliberately omitted. -->
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#111827"/></marker>
+    <marker id="accent-arrow" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto-start-reverse"><path d="M0 0L14 7L0 14Z" fill="#9333ea"/></marker>
+  </defs>
+  <rect width="360" height="300" rx="12" fill="white"/>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="18" text-anchor="middle" fill="#111827">
+    <g stroke="#9333ea" stroke-width="2"><rect x="42" y="35" width="88" height="126" fill="#faf5ff"/><rect x="130" y="35" width="88" height="126" fill="#f3e8ff"/><rect x="218" y="35" width="100" height="126" fill="#e9d5ff"/></g>
+    <path d="M39 26V161H323M68 161V137M102 161V62M145 161V115M189 161V40M236 161V131M282 161V83" fill="none" stroke="#111827" stroke-width="4"/>
+    <path d="M87 173H271" stroke="#9333ea" stroke-width="4" marker-end="url(#accent-arrow)"/>
+    <text x="182" y="199" font-size="17">step through windows</text>
+    <g fill="#faf5ff" stroke="#111827" stroke-width="2"><rect x="47" y="214" width="78" height="59" rx="5"/><rect x="136" y="214" width="78" height="59" rx="5"/><rect x="230" y="214" width="88" height="59" rx="5"/></g>
+    <path d="M58 261H114M65 261V249M76 261V230M88 261V240M101 261V225M147 261H203M154 261V237M166 261V226M179 261V244M193 261V229M241 261H307M249 261V246M261 261V225M275 261V234M289 261V228M300 261V249" fill="none" stroke="#9333ea" stroke-width="3"/>
+    <text x="182" y="295" font-size="17">Mixed fragments per window</text>
+
+  </g>
+</svg>

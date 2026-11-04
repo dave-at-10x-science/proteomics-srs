@@ -16,6 +16,7 @@ import type {
   Settings,
   StoredNote,
   StudyBatch,
+  SubscriptionProgress,
 } from '~/types/api';
 
 type Fields = Record<string, FieldValue>;
@@ -28,14 +29,15 @@ export function useApi() {
     studyBatch: (size: number) => $fetch<StudyBatch>('/api/study/batch', { query: { size } }),
     markStudied: (note_ids: string[]) =>
       $fetch<{ added: number }>('/api/study/studied', { method: 'POST', body: { note_ids } }),
+    // Choice strings render through the answer field: text, image URL, or source SMILES.
     card: (ref: CardRef) => $fetch<ReviewCard>('/api/review/card', { query: { ...ref } }),
     check: (note_id: string, template_id: string, input: string) =>
       $fetch<CheckResponse>('/api/review/check', { method: 'POST', body: { note_id, template_id, input } }),
     answer: (body: { note_id: string; template_id: string; rating: Rating; duration_ms?: number; answer?: string }) =>
       $fetch<{ next: NextResponse }>('/api/review/answer', { method: 'POST', body }),
     sets: () => $fetch<SetSummary[]>('/api/sets'),
-    subscribe: (id: string, subscribed: boolean) =>
-      $fetch(`/api/sets/${encodeURIComponent(id)}/subscription`, { method: 'PUT', body: { subscribed } }),
+    subscribe: (id: string, subscribed: boolean, progress?: SubscriptionProgress) =>
+      $fetch(`/api/sets/${encodeURIComponent(id)}/subscription`, { method: 'PUT', body: { subscribed, progress } }),
     settings: () => $fetch<Settings>('/api/settings'),
     resetProgress: () => $fetch<{ reviews_removed: number }>('/api/progress/reset', { method: 'POST' }),
     saveSettings: (s: Settings) => $fetch<Settings>('/api/settings', { method: 'PUT', body: s }),

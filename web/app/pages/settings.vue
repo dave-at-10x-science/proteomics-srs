@@ -8,6 +8,10 @@ const confirm = useOverlay().create(ConfirmModal);
 const form = ref<Settings | null>(null);
 const capReviews = ref(false);
 const errors = ref<string[]>([]);
+const studyOrders = [
+  { label: 'Set order', value: 'set_order' },
+  { label: 'Random', value: 'random' },
+] satisfies { label: string; value: Settings['study_order'] }[];
 
 onMounted(async () => {
   form.value = await api.settings();
@@ -63,11 +67,24 @@ async function reset() {
   <div class="flex flex-col gap-4">
     <h1 class="text-2xl font-bold tracking-tight text-highlighted">Settings</h1>
 
-    <UCard v-if="form">
-      <template #header>
-        <h2 class="font-semibold text-highlighted">Reviews</h2>
-      </template>
-      <form class="flex flex-col gap-5" @submit.prevent="save">
+    <form v-if="form" class="flex flex-col gap-4" @submit.prevent="save">
+      <UCard>
+        <template #header>
+          <h2 class="font-semibold text-highlighted">Study</h2>
+        </template>
+        <UFormField
+          label="New concept order"
+          description="Set order groups new concepts by set. Random mixes concepts from all selected sets for each new batch."
+          help="The order stays fixed while you study a batch."
+        >
+          <USelect v-model="form.study_order" :items="studyOrders" class="w-full" />
+        </UFormField>
+      </UCard>
+
+      <UCard :ui="{ body: 'flex flex-col gap-5' }">
+        <template #header>
+          <h2 class="font-semibold text-highlighted">Reviews</h2>
+        </template>
         <USwitch v-model="capReviews" label="Limit reviews per day" />
         <UFormField v-if="capReviews" label="Reviews per day">
           <UInputNumber v-model="form.reviews_per_day" :min="0" class="w-full" />
@@ -80,10 +97,10 @@ async function reset() {
         >
           <USlider v-model="form.desired_retention" :min="0.7" :max="0.99" :step="0.01" class="py-2" />
         </UFormField>
-        <ErrorAlert :errors="errors" />
-        <UButton type="submit" label="Save" icon="i-lucide-check" block />
-      </form>
-    </UCard>
+      </UCard>
+      <ErrorAlert :errors="errors" />
+      <UButton type="submit" label="Save" icon="i-lucide-check" block />
+    </form>
 
     <UCard>
       <template #header>

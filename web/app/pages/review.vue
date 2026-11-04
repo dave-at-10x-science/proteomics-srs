@@ -118,14 +118,27 @@ const fieldsByName = computed(() => new Map(card.value?.note_type.fields.map((f)
 const defs = (names: string[]) => names.map((n) => fieldsByName.value.get(n)).filter((f): f is FieldDef => !!f);
 const promptFields = computed(() => defs(card.value?.template.prompt ?? []));
 const answerFields = computed(() => defs(card.value?.template.answer ?? []));
+const choiceField = computed(() => answerFields.value[0]);
+const visualChoices = computed(() => choiceField.value?.type === 'image' || choiceField.value?.type === 'smiles');
 // Images in the prompt are already on screen; text prompts stay in the facts row for context.
 const shownInPrompt = computed(() => promptFields.value.filter((f) => f.type === 'image').map((f) => f.name));
 
 const mode = computed(() => card.value?.template.mode);
 
+/** The answer box's character limit, when every accepted field has one (e.g. 3 for a code). */
+const maxAnswerLength = computed(() => {
+  const t = card.value?.template;
+  if (!t) return undefined;
+  const limits = defs(t.accept?.length ? t.accept : t.answer).map((f) => f.max_length);
+  return limits.length > 0 && limits.every((n): n is number => n !== undefined) ? Math.max(...limits) : undefined;
+});
+
 /** What to answer with, e.g. "Type the three-letter code". */
 const question = computed(() => {
-  const labels = answerFields.value.map((f) => fieldLabel(f).toLowerCase());
+  const labels = answerFields.value.map((f) => {
+    const label = fieldLabel(f);
+    return /^[A-Z]{2}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
+  });
   if (labels.length === 0) return '';
   const what = labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}` : labels[0]!;
   if (mode.value === 'typed') return `Type the ${what}`;
@@ -134,8 +147,22 @@ const question = computed(() => {
 });
 const correctChoice = computed(() => {
   const c = card.value;
-  return c ? String(c.fields[c.template.answer[0]!] ?? '') : '';
+  const f = choiceField.value;
+  return c && f ? String(c.fields[f.from ?? f.name] ?? '') : '';
 });
+
+function choiceFields(choice: string) {
+  const f = choiceField.value;
+  return f ? { [f.from ?? f.name]: choice } : {};
+}
+
+function choiceLabel(choice: string, index: number) {
+  const label = `Option ${index + 1}`;
+  if (!revealed.value) return label;
+  if (choice === correctChoice.value) return `${label}, correct answer`;
+  if (choice === picked.value) return `${label}, your answer, incorrect`;
+  return label;
+}
 
 /** Typed and multiple-choice answers grade themselves; flip cards are self-graded. */
 const verdict = computed<'correct' | 'wrong' | undefined>(() => {
@@ -192,7 +219,7 @@ async function rate(rating: Rating) {
   }
 }
 
-// A wrong answer is recorded as Again; Continue is focused so Enter moves on.
+// A wrong answer is recorded as Again; the Incorrect button is focused so Enter moves on.
 const continueButton = useTemplateRef<{ $el: HTMLElement }>('continueButton');
 watch(continueButton, (b) => b?.$el.focus());
 
@@ -253,16 +280,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           </div>
         </div>
         <SegmentedPicker v-model="size" :items="SIZES" legend="Cards in this round" />
-        <div class="flex flex-col gap-2">
-          <UButton
-            :label="`Start round of ${roundSize} ${roundSize === 1 ? 'card' : 'cards'}`"
-            trailing-icon="i-lucide-arrow-right"
-            block
-            :loading="busy"
-            @click="start"
-          />
-          <p class="text-center text-xs text-muted">If more are due than fit, the round is a random pick of them.</p>
-        </div>
+        <UButton
+          :label="`Start round of ${roundSize} ${roundSize === 1 ? 'card' : 'cards'}`"
+          trailing-icon="i-lucide-arrow-right"
+          block
+          :loading="busy"
+          @click="start"
+        />
       </UCard>
       <UCard v-else>
         <UEmpty
@@ -326,6 +350,48 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <UBadge :label="question" color="primary" variant="soft" size="xl" class="rounded-full px-4" />
         </div>
 
+        <div
+          v-if="mode === 'multiple_choice'"
+          class="grid gap-2"
+          :class="choiceField?.detailed || promptFields.some(f => f.detailed) ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'"
+        >
+          <UButton
+            v-for="(c, index) in card.choices"
+            :key="c"
+            :color="revealed && c === correctChoice ? 'success' : revealed && c === picked ? 'error' : 'neutral'"
+            :variant="revealed && (c === correctChoice || c === picked) ? 'soft' : 'outline'"
+            :trailing-icon="!visualChoices && revealed ? (c === correctChoice ? 'i-lucide-check' : c === picked ? 'i-lucide-x' : undefined) : undefined"
+            :aria-label="visualChoices ? choiceLabel(c, index) : undefined"
+            block
+            :disabled="revealed"
+            class="min-h-14 min-w-0 text-center disabled:cursor-default"
+            :class="[
+              visualChoices ? 'flex-col p-2 disabled:opacity-100' : '',
+              !visualChoices && revealed
+                ? c === correctChoice || c === picked ? 'disabled:opacity-100' : 'disabled:opacity-50'
+                : '',
+            ]"
+            @click="pick(c)"
+          >
+            <template v-if="visualChoices && choiceField">
+              <span aria-hidden="true" class="flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-white">
+                <FieldView
+                  :def="choiceField"
+                  :fields="choiceFields(c)"
+                  :note-type="card.note_type"
+                  class="pointer-events-none flex size-full items-center justify-center [&_img]:max-h-full [&_img]:object-contain"
+                />
+              </span>
+              <span aria-hidden="true" class="flex items-center justify-center gap-1 text-sm">
+                <UIcon v-if="revealed && c === correctChoice" name="i-lucide-check" class="size-4 shrink-0" />
+                <UIcon v-else-if="revealed && c === picked" name="i-lucide-x" class="size-4 shrink-0" />
+                {{ revealed && c === correctChoice ? 'Correct' : revealed && c === picked ? 'Incorrect' : `Option ${index + 1}` }}
+              </span>
+            </template>
+            <span v-else class="min-w-0 whitespace-normal wrap-anywhere hyphens-auto">{{ c }}</span>
+          </UButton>
+        </div>
+
         <!-- Answer input -->
         <template v-if="!revealed">
           <form v-if="mode === 'typed'" class="flex flex-col gap-2" @submit.prevent="submitTyped">
@@ -333,6 +399,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               v-model="typed"
               :placeholder="question"
               :aria-label="question"
+              :maxlength="maxAnswerLength"
               autocomplete="off"
               autocapitalize="off"
               :spellcheck="false"
@@ -343,41 +410,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             <UButton label="I don't know" color="neutral" variant="ghost" block @click="giveUp" />
           </form>
 
-          <div v-else-if="mode === 'multiple_choice'" class="grid grid-cols-2 gap-2">
-            <UButton
-              v-for="c in card.choices"
-              :key="c"
-              color="neutral"
-              variant="outline"
-              block
-              class="min-h-14 text-center"
-              @click="pick(c)"
-            >
-              {{ c }}
-            </UButton>
-          </div>
-
-          <UButton v-else label="Show answer" icon="i-lucide-eye" block @click="revealed = true" />
+          <UButton v-else-if="mode !== 'multiple_choice'" label="Show answer" icon="i-lucide-eye" block @click="revealed = true" />
         </template>
 
         <!-- Revealed -->
         <template v-else>
-          <div v-if="mode === 'multiple_choice'" class="grid grid-cols-2 gap-2">
-            <UButton
-              v-for="c in card.choices"
-              :key="c"
-              :color="c === correctChoice ? 'success' : c === picked ? 'error' : 'neutral'"
-              :variant="c === correctChoice || c === picked ? 'soft' : 'outline'"
-              :trailing-icon="c === correctChoice ? 'i-lucide-check' : c === picked ? 'i-lucide-x' : undefined"
-              block
-              disabled
-              class="min-h-14 text-center disabled:cursor-default"
-              :class="c === correctChoice || c === picked ? 'disabled:opacity-100' : 'disabled:opacity-50'"
-            >
-              {{ c }}
-            </UButton>
-          </div>
-
           <UCard
             :class="verdict === 'correct' ? 'bg-success/8 ring-success/40' : verdict === 'wrong' ? 'bg-error/8 ring-error/40' : ''"
             :ui="{ body: 'flex flex-col gap-4' }"
@@ -408,8 +445,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :disabled="busy"
             @click="rate('again')"
           >
-            <span class="font-semibold">Continue</span>
-            <span class="text-xs font-normal opacity-85">recorded as Again</span>
+            <span class="font-semibold">Incorrect</span>
+            <span class="text-xs font-normal opacity-85">{{ formatInterval(card.intervals.again) }}</span>
           </UButton>
           <RatingButtons
             v-else

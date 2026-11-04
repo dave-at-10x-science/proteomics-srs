@@ -8,6 +8,7 @@ use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
+use srs_core::content::SetFile;
 use srs_server::claude::Claude;
 use srs_server::{AppState, app, open_db, seed};
 use tower::ServiceExt;
@@ -30,7 +31,7 @@ impl TestApp {
     async fn build(claude: Option<Claude>) -> Self {
         let pool = open_db("sqlite::memory:").await.unwrap();
         let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
-        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 5);
+        assert_eq!(seed::import_dir(&pool, seed_dir.as_ref()).await.unwrap(), 6);
         let now = Arc::new(Mutex::new(Utc.with_ymd_and_hms(2026, 10, 23, 12, 0, 0).unwrap()));
         let clock_now = now.clone();
         let media_dir = std::env::temp_dir().join(format!("srs-media-{}", std::process::id()));
@@ -114,6 +115,27 @@ async fn default_set_is_imported_and_subscribed() {
 }
 
 #[tokio::test]
+async fn cards_of_removed_templates_are_deleted_on_import() {
+    let t = TestApp::new().await;
+    t.study(1).await;
+    let card = t.get("/api/review/next").await["card"].clone();
+    t.rate(&card, "good").await;
+
+    let mut file = SetFile::from_yaml(include_str!("../../../seed/amino-acids/amino-acids.yaml")).unwrap();
+    let removed = card["template_id"].as_str().unwrap().to_string();
+    file.note_type.templates.retain(|tpl| tpl.id != removed);
+    seed::import_set(&t.pool, &file).await.unwrap();
+
+    assert_eq!(t.get("/api/sets").await[0]["card_count"], 120);
+    let left: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM card_state WHERE template_id = ?")
+        .bind(&removed)
+        .fetch_one(&t.pool)
+        .await
+        .unwrap();
+    assert_eq!(left, 0, "the removed card's schedule goes with it");
+}
+
+#[tokio::test]
 async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let t = TestApp::new().await;
     let mut gly = t.get("/api/notes/aa-gly").await;
@@ -134,11 +156,10 @@ async fn seed_import_is_idempotent_and_keeps_app_edits() {
     let seed_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../seed");
     seed::import_dir(&t.pool, seed_dir.as_ref()).await.unwrap();
     let count = |sql: &'static str| sqlx::query_scalar::<_, i64>(sql).fetch_one(&t.pool);
-    // 20 amino acids x 8 templates, 24 terms x 2, 14 PTMs x 5, 9 monosaccharides x 5,
-    // 22 glycan concepts x 2.
-    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 89);
-    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 367);
-    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 89);
+    // Old directions remain as inactive records alongside the new visual cards.
+    assert_eq!(count("SELECT COUNT(*) FROM notes").await.unwrap(), 88);
+    assert_eq!(count("SELECT COUNT(*) FROM cards").await.unwrap(), 449);
+    assert_eq!(count("SELECT COUNT(*) FROM set_notes").await.unwrap(), 88);
 
     assert_eq!(t.get("/api/notes/aa-gly").await["note"], "Edited in the app");
 }
@@ -279,6 +300,144 @@ async fn typed_answers_are_checked() {
 }
 
 #[tokio::test]
+async fn names_offer_four_distinct_illustrations_with_the_correct_structure() {
+    let t = TestApp::new().await;
+    let seed = SetFile::from_yaml(include_str!("../../../seed/amino-acids/amino-acids.yaml")).unwrap();
+    let allowed: Vec<_> = seed.notes.iter().map(|n| n.text("smiles").unwrap()).collect();
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..12 {
+        let card = t
+            .get("/api/review/card?note_id=aa-ala&template_id=name-to-structure")
+            .await;
+        assert_eq!(card["template"]["prompt"], json!(["name"]));
+        assert_eq!(card["template"]["answer"], json!(["structure"]));
+        assert_eq!(card["template"]["mode"], "multiple_choice");
+        assert_eq!(card["fields"]["name"], "Alanine");
+        assert_eq!(card["note_type"]["fields"][3]["from"], "smiles");
+        let choices = card["choices"].as_array().unwrap();
+        assert_eq!(choices.len(), 4);
+        assert_eq!(choices.iter().collect::<std::collections::HashSet<_>>().len(), 4);
+        assert_eq!(
+            choices.iter().filter(|v| **v == card["fields"]["smiles"]).count(),
+            1
+        );
+        for choice in choices {
+            let value = choice.as_str().unwrap();
+            assert!(allowed.iter().any(|s| s == value));
+            seen.insert(value.to_string());
+        }
+        let request = |input: &Value| json!({ "note_id": "aa-ala", "template_id": "name-to-structure", "input": input });
+        let (status, correct) = t
+            .post("/api/review/check", request(&card["fields"]["smiles"]))
+            .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(correct["correct"], true);
+        assert_eq!(correct["expected"]["smiles"], card["fields"]["smiles"]);
+        let wrong = choices.iter().find(|v| **v != card["fields"]["smiles"]).unwrap();
+        assert_eq!(
+            t.post("/api/review/check", request(wrong)).await.1["correct"],
+            false
+        );
+    }
+    assert!(seen.len() > 4, "distractors should vary between questions");
+}
+
+#[tokio::test]
+async fn derived_picture_prompts_also_offer_distinct_text_distractors() {
+    let t = TestApp::new().await;
+    let mut kind = srs_server::store::note_type(&t.pool, "AminoAcid").await.unwrap();
+    kind.templates
+        .iter_mut()
+        .find(|t| t.id == "structure-to-name")
+        .unwrap()
+        .mode = srs_core::model::AnswerMode::MultipleChoice;
+    sqlx::query("UPDATE note_types SET definition = ? WHERE id = 'AminoAcid'")
+        .bind(serde_json::to_string(&kind).unwrap())
+        .execute(&t.pool)
+        .await
+        .unwrap();
+    let card = t
+        .get("/api/review/card?note_id=aa-ala&template_id=structure-to-name")
+        .await;
+    let choices = card["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 4);
+    assert!(choices.contains(&json!("Alanine")));
+}
+
+#[tokio::test]
+async fn monosaccharides_use_pictures_and_short_facts_without_mass_drills() {
+    let t = TestApp::new().await;
+    t.call(
+        "PUT",
+        "/api/sets/amino-acids-20/subscription",
+        Some(json!({ "subscribed": false })),
+    )
+    .await;
+    t.call(
+        "PUT",
+        "/api/sets/monosaccharides/subscription",
+        Some(json!({ "subscribed": true })),
+    )
+    .await;
+    let ids = t.study(20).await;
+    assert_eq!(ids.len(), 9);
+    let round = t.get("/api/review/round?size=100").await;
+    assert_eq!(round["cards"].as_array().unwrap().len(), 27);
+    for card in round["cards"].as_array().unwrap() {
+        assert!(
+            ["name-to-abbreviation", "name-to-symbol", "symbol-to-name"]
+                .contains(&card["template_id"].as_str().unwrap())
+        );
+    }
+    let card = t
+        .get("/api/review/card?note_id=mono-glc&template_id=name-to-symbol")
+        .await;
+    let choices = card["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 4);
+    assert!(choices.contains(&card["fields"]["symbol"]));
+    for choice in choices {
+        let url = choice.as_str().unwrap();
+        assert!(url.starts_with("/study/monosaccharides/"));
+        let path = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../web/public"))
+            .join(url.trim_start_matches('/'));
+        assert!(path.is_file(), "missing bundled illustration: {url}");
+    }
+    let (_, checked) = t
+        .post(
+            "/api/review/check",
+            json!({
+                "note_id": "mono-neuac", "template_id": "name-to-abbreviation", "input": "NeuAc"
+            }),
+        )
+        .await;
+    assert_eq!(checked["correct"], true, "common abbreviations remain valid");
+    let options = t.get("/api/game/options").await;
+    assert_eq!(options[0]["set_id"], "monosaccharides");
+    assert_eq!(options[0]["pairings"].as_array().unwrap().len(), 2);
+    let board = t
+        .get("/api/game/board?set=monosaccharides&a=symbol&b=name&pairs=9")
+        .await;
+    assert_eq!(board["tiles"].as_array().unwrap().len(), 18);
+    for fields in board["notes"].as_object().unwrap().values() {
+        assert!(fields["symbol"].as_str().unwrap().ends_with(".svg"));
+        assert!(fields.get("residue_mass").is_none());
+    }
+    let uri = "/api/review/card?note_id=mono-glc&template_id=name-to-residue-mass";
+    assert_eq!(t.call("GET", uri, None).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(
+        t.post(
+            "/api/review/answer",
+            json!({
+                "note_id": "mono-glc", "template_id": "name-to-residue-mass", "rating": "good"
+            })
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
 async fn notes_can_be_added_to_a_new_set() {
     let t = TestApp::new().await;
     let (status, set) = t.post("/api/sets", json!({ "name": "Proteases" })).await;
@@ -406,18 +565,18 @@ async fn images_upload_and_are_served_with_a_strict_csp() {
 }
 
 #[tokio::test]
-async fn vocabulary_set_is_imported_but_not_subscribed() {
+async fn mass_spec_concepts_are_imported_but_not_subscribed() {
     let t = TestApp::new().await;
     let sets = t.get("/api/sets").await;
     let vocab = sets
         .as_array()
         .unwrap()
         .iter()
-        .find(|s| s["id"] == "ms-vocabulary")
+        .find(|s| s["id"] == "mass-spec-concepts")
         .unwrap();
     assert_eq!(vocab["subscribed"], false);
-    assert_eq!(vocab["note_count"], 24);
-    assert_eq!(vocab["card_count"], 48);
+    assert_eq!(vocab["note_count"], 22);
+    assert_eq!(vocab["card_count"], 44);
 }
 
 #[tokio::test]
@@ -462,14 +621,26 @@ async fn memory_game_uses_only_introduced_notes_and_never_touches_the_schedule()
     assert!(note["smiles"].is_string() && note["name"].is_string());
     assert!(note.get("pI").is_none(), "only the fields tiles need are sent");
 
-    // Side-chain class repeats across amino acids, and values must be unique per side or matches
-    // would be ambiguous. The first ten amino acids span only two classes, so that board is refused.
+    // Duplicate pictures must not make matches ambiguous. Give these five fixture notes only
+    // two distinct pictures, so they cannot produce the minimum three pairs.
+    let five = ["mono-glc", "mono-man", "mono-gal", "mono-glcnac", "mono-galnac"];
+    for (index, id) in five.iter().enumerate() {
+        let image = if index < 3 {
+            "/study/monosaccharides/glc.svg"
+        } else {
+            "/study/monosaccharides/glcnac.svg"
+        };
+        sqlx::query("UPDATE notes SET fields = json_set(fields, '$.symbol', ?) WHERE id = ?")
+            .bind(image)
+            .bind(id)
+            .execute(&t.pool)
+            .await
+            .unwrap();
+    }
+    let (status, v) = t.post("/api/study/studied", json!({ "note_ids": five })).await;
+    assert_eq!(status, StatusCode::OK, "{v}");
     let (status, err) = t
-        .call(
-            "GET",
-            "/api/game/board?set=amino-acids-20&a=structure&b=side_chain_class",
-            None,
-        )
+        .call("GET", "/api/game/board?set=monosaccharides&a=symbol&b=name", None)
         .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert!(err["error"].as_str().unwrap().contains("found 2"), "{err}");
@@ -534,7 +705,7 @@ async fn drafting_is_off_without_an_api_key() {
     assert_eq!(t.get("/api/draft/status").await["available"], false);
     let (status, v) = t
         .post(
-            "/api/sets/ms-vocabulary/draft",
+            "/api/sets/mass-spec-concepts/draft",
             json!({ "source": "ion mobility" }),
         )
         .await;
@@ -561,7 +732,7 @@ async fn drafted_notes_wait_as_drafts_until_published() {
 
     let (status, v) = t
         .post(
-            "/api/sets/ms-vocabulary/draft",
+            "/api/sets/mass-spec-concepts/draft",
             json!({ "source": "ion mobility terms", "count": 3 }),
         )
         .await;
@@ -584,9 +755,17 @@ async fn drafted_notes_wait_as_drafts_until_published() {
     let item = &body["output_config"]["format"]["schema"]["properties"]["notes"]["items"];
     assert_eq!(
         item["required"],
-        json!(["term", "definition", "technical", "example"])
+        json!([
+            "term",
+            "short_form",
+            "definition",
+            "function",
+            "key_fact",
+            "technical",
+            "example"
+        ])
     );
-    assert!(body["system"].as_str().unwrap().contains("Precursor ion"));
+    assert!(body["system"].as_str().unwrap().contains("Monoisotopic mass"));
     assert!(
         body["messages"][0]["content"]
             .as_str()
@@ -598,7 +777,7 @@ async fn drafted_notes_wait_as_drafts_until_published() {
     let (status, _) = t
         .call(
             "PUT",
-            "/api/sets/ms-vocabulary/subscription",
+            "/api/sets/mass-spec-concepts/subscription",
             Some(json!({ "subscribed": true })),
         )
         .await;
@@ -623,7 +802,9 @@ async fn drafted_notes_wait_as_drafts_until_published() {
     }
     assert!(!seen_ids.iter().any(|id| id == "term-ion-mobility"));
 
-    let (status, v) = t.post("/api/sets/ms-vocabulary/publish-drafts", json!({})).await;
+    let (status, v) = t
+        .post("/api/sets/mass-spec-concepts/publish-drafts", json!({}))
+        .await;
     assert_eq!(status, StatusCode::OK, "{v}");
     assert_eq!(v["published"], 1);
     assert_eq!(t.get("/api/notes/term-ion-mobility").await["status"], "published");
@@ -638,7 +819,10 @@ async fn refusals_and_api_errors_are_reported_plainly() {
     .await;
     let t = TestApp::with_claude(url).await;
     let (status, v) = t
-        .post("/api/sets/ms-vocabulary/draft", json!({ "source": "anything" }))
+        .post(
+            "/api/sets/mass-spec-concepts/draft",
+            json!({ "source": "anything" }),
+        )
         .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{v}");
     assert!(v["error"].as_str().unwrap().contains("declined"));
@@ -650,7 +834,10 @@ async fn refusals_and_api_errors_are_reported_plainly() {
     .await;
     let t = TestApp::with_claude(url).await;
     let (status, v) = t
-        .post("/api/sets/ms-vocabulary/draft", json!({ "source": "anything" }))
+        .post(
+            "/api/sets/mass-spec-concepts/draft",
+            json!({ "source": "anything" }),
+        )
         .await;
     assert_eq!(status, StatusCode::BAD_GATEWAY, "{v}");
     assert!(v["error"].as_str().unwrap().contains("Overloaded"));
@@ -664,7 +851,11 @@ async fn client_routes_are_served_the_app_shell() {
     std::fs::write(web.join("index.html"), "<html>shell</html>").unwrap();
     let router = app(AppState::new(pool, web.join("media")), Some(web));
     let res = router
-        .oneshot(Request::get("/sets/ms-vocabulary").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::get("/sets/mass-spec-concepts")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
@@ -752,11 +943,12 @@ async fn distractors_never_share_the_prompt() {
         )
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
-    // Deamidation and citrullination have the same mass shift, so asking for the name from the
-    // mass must never offer the other one.
+    // Two authored notes using the same picture would both answer that prompt correctly.
+    sqlx::query("UPDATE notes SET fields = json_set(fields, '$.structure', (SELECT json_extract(fields, '$.structure') FROM notes WHERE id = 'ptm-deamidation')) WHERE id = 'ptm-citrullination'")
+        .execute(&t.pool).await.unwrap();
     for _ in 0..20 {
         let card = t
-            .get("/api/review/card?note_id=ptm-deamidation&template_id=mass-shift-to-name")
+            .get("/api/review/card?note_id=ptm-deamidation&template_id=structure-to-name")
             .await;
         let choices = card["choices"].as_array().unwrap();
         assert_eq!(choices.len(), 4);
